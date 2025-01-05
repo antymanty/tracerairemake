@@ -35,11 +35,11 @@ export default function ParticlePreloader({ onLoadingComplete }: ParticlePreload
   }, [onLoadingComplete])
 
   return (
-    <>
+    <div>
       <AnimatePresence>
         {!isComplete && (
           <motion.div 
-            className="fixed inset-0 z-50 bg-black"
+            className="fixed inset-0 z-50"
             exit={{ opacity: 0 }}
             transition={{ duration: 1, ease: "easeInOut" }}
           >
@@ -59,7 +59,7 @@ export default function ParticlePreloader({ onLoadingComplete }: ParticlePreload
                     animate={{ width: `${progress}%` }}
                     transition={{ duration: 0.1 }}
                     style={{
-                      boxShadow: '0 0 20px rgba(255, 255, 255, 0.5), 0 0 40px rgba(255, 255, 255, 0.3), 0 0 60px rgba(255, 255, 255, 0.2)',
+                      boxShadow: '0 0 20px rgba(255, 255, 255, 0.3)',
                     }}
                   >
                     {/* Animated overlay for subtle shine */}
@@ -101,6 +101,6 @@ export default function ParticlePreloader({ onLoadingComplete }: ParticlePreload
           }
         }
       `}</style>
-    </>
+    </div>
   )
 } 

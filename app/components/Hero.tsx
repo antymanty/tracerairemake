@@ -10,9 +10,16 @@ import CountdownWindow from './CountdownWindow'
 
 export default function Hero() {
   return (
-    <section className="relative min-h-screen bg-black overflow-hidden">
+    <motion.section 
+      className="relative min-h-screen bg-black overflow-hidden"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 1 }}
+    >
       <WavyBackground />
-      <GrainEffect />
+      <div className="absolute inset-0 pointer-events-none">
+        <GrainEffect />
+      </div>
       <div className="container mx-auto px-6 pt-32 text-center relative z-10">
         <motion.h1 
           className="text-7xl font-bold tracking-tighter mb-4 text-white"
@@ -55,6 +62,6 @@ export default function Hero() {
       <div className="flex items-center justify-center absolute inset-0">
         <CountdownWindow />
       </div>
-    </section>
+    </motion.section>
   )
 } 

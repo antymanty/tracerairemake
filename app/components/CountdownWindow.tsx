@@ -19,21 +19,30 @@ export default function CountdownWindow() {
   const [message, setMessage] = useState(MESSAGES[0])
 
   useEffect(() => {
-    // Set the start time to 22:45 UTC
-    const startTime = new Date()
-    startTime.setUTCHours(22, 45, 0, 0)
-    
-    // If current time is before start time, adjust to previous day
-    if (new Date() > startTime) {
-      startTime.setDate(startTime.getDate() - 1)
+    // Set start time to 23:00 Oslo time
+    const now = new Date()
+    const startTime = new Date(now)
+    startTime.setHours(23, 0, 0, 0) // Set to 23:00
+
+    // If current time is past 23:00, set start time to next day
+    if (now > startTime) {
+      startTime.setDate(startTime.getDate() + 1)
     }
-    
-    const endTime = new Date(startTime.getTime() + (6 * 60 * 60 * 1000)) // 6 hours later
+
+    // Set end time to 1 hour and 20 minutes after start
+    const endTime = new Date(startTime.getTime() + (80 * 60 * 1000)) // 80 minutes in milliseconds
 
     const updateProgress = () => {
-      const now = new Date()
+      const currentTime = new Date()
+      
+      // If we haven't reached start time yet, progress is 0
+      if (currentTime < startTime) {
+        setProgress(0)
+        return
+      }
+
       const total = endTime.getTime() - startTime.getTime()
-      const elapsed = now.getTime() - startTime.getTime()
+      const elapsed = currentTime.getTime() - startTime.getTime()
       const newProgress = Math.min(100, Math.max(0, (elapsed / total) * 100))
       setProgress(newProgress)
 
@@ -55,7 +64,12 @@ export default function CountdownWindow() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.8, delay: 1.2 }}
     >
-      <div className="relative bg-black/50 backdrop-blur-md border border-white/10 rounded-xl p-6">
+      <div 
+        className="relative bg-black/50 backdrop-blur-md border border-white/10 rounded-xl p-6"
+        style={{
+          boxShadow: '0 0 5px rgba(255, 255, 255, 0.05), 0 0 10px rgba(255, 255, 255, 0.025), inset 0 0 5px rgba(255, 255, 255, 0.025)'
+        }}
+      >
         <ButtonGrainEffect />
         <div className="relative z-10">
           <div className="flex justify-between items-center mb-4">
