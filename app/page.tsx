@@ -1,13 +1,19 @@
-import Hero from './components/Hero'
-import Features from './components/Features'
-import About from './components/About'
+'use client'
+
+import { useState } from 'react'
+import Hero from '@/app/components/Hero'
+import ParticlePreloader from '@/app/components/ParticlePreloader'
 
 export default function Home() {
+  const [loading, setLoading] = useState(true)
+
   return (
     <main>
-      <Hero />
-      <Features />
-      <About />
+      {loading ? (
+        <ParticlePreloader onLoadingComplete={() => setLoading(false)} />
+      ) : (
+        <Hero />
+      )}
     </main>
   )
 }
