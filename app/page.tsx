@@ -8,7 +8,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
 
   return (
-    <main>
+    <main className="bg-black">
       {loading ? (
         <ParticlePreloader onLoadingComplete={() => setLoading(false)} />
       ) : (

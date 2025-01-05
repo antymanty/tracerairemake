@@ -19,14 +19,16 @@ export default function CountdownWindow() {
   const [message, setMessage] = useState(MESSAGES[0])
 
   useEffect(() => {
-    // Set start time to 23:00 Oslo time
+    // Get current time
     const now = new Date()
     const startTime = new Date(now)
-    startTime.setHours(23, 0, 0, 0) // Set to 23:00
-
-    // If current time is past 23:00, set start time to next day
-    if (now > startTime) {
-      startTime.setDate(startTime.getDate() + 1)
+    
+    // If it's past 23:00, start now
+    if (now.getHours() >= 23) {
+      startTime.setTime(now.getTime())
+    } else {
+      // Otherwise, wait for 23:00
+      startTime.setHours(23, 0, 0, 0)
     }
 
     // Set end time to 1 hour and 20 minutes after start
@@ -41,9 +43,23 @@ export default function CountdownWindow() {
         return
       }
 
+      // If we're past end time, progress is 100
+      if (currentTime > endTime) {
+        setProgress(100)
+        return
+      }
+
       const total = endTime.getTime() - startTime.getTime()
       const elapsed = currentTime.getTime() - startTime.getTime()
       const newProgress = Math.min(100, Math.max(0, (elapsed / total) * 100))
+      
+      console.log({
+        now: currentTime.toLocaleTimeString(),
+        start: startTime.toLocaleTimeString(),
+        end: endTime.toLocaleTimeString(),
+        progress: newProgress.toFixed(2)
+      })
+      
       setProgress(newProgress)
 
       // Change message every ~15% progress
@@ -51,7 +67,10 @@ export default function CountdownWindow() {
       setMessage(MESSAGES[Math.min(messageIndex, MESSAGES.length - 1)])
     }
 
+    // Initial update
     updateProgress()
+
+    // Update every second
     const interval = setInterval(updateProgress, 1000)
 
     return () => clearInterval(interval)
