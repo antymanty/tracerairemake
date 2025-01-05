@@ -14,79 +14,43 @@ const MESSAGES = [
   "Harmonizing quantum fluctuations...",
 ]
 
-const STORAGE_KEY = 'countdown_start_time'
+// Fixed start time: November 23, 2023 at 23:00 Oslo time (UTC+1)
+const FIXED_START_TIME = new Date('2023-11-23T22:00:00.000Z') // 23:00 Oslo time in UTC
 
 export default function CountdownWindow() {
   const [progress, setProgress] = useState(0)
   const [message, setMessage] = useState(MESSAGES[0])
 
   useEffect(() => {
-    // Try to get saved start time
-    const savedStartTime = localStorage.getItem(STORAGE_KEY)
-    let startTime: Date
-
-    if (!savedStartTime) {
-      // If no saved time, set up new start time
-      const now = new Date()
-      startTime = new Date(now)
-      
-      // If it's past 23:00, start now
-      if (now.getHours() >= 23) {
-        startTime.setTime(now.getTime())
-      } else {
-        // Otherwise, wait for 23:00
-        startTime.setHours(23, 0, 0, 0)
-      }
-
-      // Save start time
-      localStorage.setItem(STORAGE_KEY, startTime.toISOString())
-    } else {
-      // Use saved start time
-      startTime = new Date(savedStartTime)
-    }
-
     // Set end time to 1 hour and 20 minutes after start
-    const endTime = new Date(startTime.getTime() + (80 * 60 * 1000)) // 80 minutes in milliseconds
+    const endTime = new Date(FIXED_START_TIME.getTime() + (80 * 60 * 1000)) // 80 minutes in milliseconds
 
     const updateProgress = () => {
       const currentTime = new Date()
-      
-      // If we haven't reached start time yet, progress is 0
-      if (currentTime < startTime) {
-        setProgress(0)
-        return
-      }
-
-      // If we're past end time, stay at 100%
-      if (currentTime > endTime) {
-        setProgress(100)
-        setMessage(MESSAGES[MESSAGES.length - 1])
-        return
-      }
-
-      const total = endTime.getTime() - startTime.getTime()
-      const elapsed = currentTime.getTime() - startTime.getTime()
+      const total = endTime.getTime() - FIXED_START_TIME.getTime()
+      const elapsed = currentTime.getTime() - FIXED_START_TIME.getTime()
       const newProgress = Math.min(100, Math.max(0, (elapsed / total) * 100))
       
+      // Calculate message index based on progress
+      const messageIndex = Math.floor((Math.min(newProgress, 100) / 100) * (MESSAGES.length - 1))
+      setMessage(MESSAGES[messageIndex])
+      setProgress(newProgress)
+
       console.log({
         now: currentTime.toLocaleTimeString(),
-        start: startTime.toLocaleTimeString(),
+        start: FIXED_START_TIME.toLocaleTimeString(),
         end: endTime.toLocaleTimeString(),
         progress: newProgress.toFixed(2)
       })
-      
-      setProgress(newProgress)
-
-      // Change message every ~15% progress
-      const messageIndex = Math.floor((newProgress / 100) * MESSAGES.length)
-      setMessage(MESSAGES[Math.min(messageIndex, MESSAGES.length - 1)])
     }
 
     // Initial update
     updateProgress()
 
-    // Update every second
-    const interval = setInterval(updateProgress, 1000)
+    // Update every second if not at 100%
+    const interval = setInterval(() => {
+      updateProgress()
+    }, 1000)
 
     return () => clearInterval(interval)
   }, [])
