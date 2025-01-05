@@ -8,7 +8,7 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "TracerAI",
+  title: "Tracer AI",
   description: "Empowering the future with intelligent tracking solutions",
 };
 

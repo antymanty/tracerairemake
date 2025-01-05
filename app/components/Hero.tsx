@@ -44,7 +44,7 @@ export default function Hero() {
           transition={{ duration: 0.8, delay: 0.9 }}
         >
           <div className="relative">
-            <RainbowButton onClick={() => window.open('https://x.com/tracerai_', '_blank')}>
+            <RainbowButton onClick={() => window.open('https://x.com/Tracer AI_', '_blank')}>
               <Twitter className="w-5 h-5 mr-2" />
               Twitter
             </RainbowButton>
