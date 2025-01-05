@@ -221,7 +221,8 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
               Math.pow(positions[i + 2] - positions[j + 2], 2)
             )
 
-            if (distance < 200) { // Increased from 100 to 200
+            // Increased connection probability and distance threshold
+            if (distance < 200 && Math.random() > 0.5) {
               const lineGeometry = new THREE.BufferGeometry()
               const linePositions = [
                 positions[i], positions[i + 1], positions[i + 2],
@@ -232,7 +233,7 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
               const lineMaterial = new THREE.LineBasicMaterial({
                 color: cluster.color,
                 transparent: true,
-                opacity: 0.15, // Reduced opacity since there will be more lines
+                opacity: 0.15,  // Reduced opacity since there will be more lines
                 blending: THREE.AdditiveBlending
               })
 
@@ -248,15 +249,17 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
           const prevCluster = nodesRef.current[clusterIndex - 1]
           const prevPositions = prevCluster.geometry.attributes.position.array
           
-          for (let i = 0; i < positions.length; i += 15) { // Reduced step from 30 to 15
-            for (let j = 0; j < prevPositions.length; j += 15) { // Reduced step from 30 to 15
+          // Increased frequency of inter-cluster connections
+          for (let i = 0; i < positions.length; i += 15) {  // Reduced step size from 30 to 15
+            for (let j = 0; j < prevPositions.length; j += 15) {
               const distance = Math.sqrt(
                 Math.pow(positions[i] - prevPositions[j], 2) +
                 Math.pow(positions[i + 1] - prevPositions[j + 1], 2) +
                 Math.pow(positions[i + 2] - prevPositions[j + 2], 2)
               )
 
-              if (distance < 600) { // Added distance check
+              // Add distance check for inter-cluster connections
+              if (distance < 1000) {  // Large threshold for inter-cluster connections
                 const lineGeometry = new THREE.BufferGeometry()
                 const linePositions = [
                   positions[i], positions[i + 1], positions[i + 2],
@@ -267,7 +270,43 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
                 const lineMaterial = new THREE.LineBasicMaterial({
                   color: 0xffffff,
                   transparent: true,
-                  opacity: 0.08, // Reduced opacity
+                  opacity: 0.08,  // Reduced opacity for inter-cluster connections
+                  blending: THREE.AdditiveBlending
+                })
+
+                const line = new THREE.Line(lineGeometry, lineMaterial)
+                scene.add(line)
+                linesRef.current.push(line)
+              }
+            }
+          }
+        }
+
+        // Add connections to all other clusters
+        for (let otherClusterIndex = 0; otherClusterIndex < clusterIndex - 1; otherClusterIndex++) {
+          const otherCluster = nodesRef.current[otherClusterIndex]
+          const otherPositions = otherCluster.geometry.attributes.position.array
+          
+          for (let i = 0; i < positions.length; i += 20) {
+            for (let j = 0; j < otherPositions.length; j += 20) {
+              const distance = Math.sqrt(
+                Math.pow(positions[i] - otherPositions[j], 2) +
+                Math.pow(positions[i + 1] - otherPositions[j + 1], 2) +
+                Math.pow(positions[i + 2] - otherPositions[j + 2], 2)
+              )
+
+              if (distance < 1000) {
+                const lineGeometry = new THREE.BufferGeometry()
+                const linePositions = [
+                  positions[i], positions[i + 1], positions[i + 2],
+                  otherPositions[j], otherPositions[j + 1], otherPositions[j + 2]
+                ]
+                lineGeometry.setAttribute('position', new THREE.Float32BufferAttribute(linePositions, 3))
+
+                const lineMaterial = new THREE.LineBasicMaterial({
+                  color: 0xffffff,
+                  transparent: true,
+                  opacity: 0.08,
                   blending: THREE.AdditiveBlending
                 })
 
