@@ -4,11 +4,7 @@ import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import gsap from 'gsap'
 
-interface WavyBackgroundProps {
-  children?: React.ReactNode
-}
-
-export default function WavyBackground({ children }: WavyBackgroundProps) {
+export default function WavyBackground() {
   const containerRef = useRef<HTMLDivElement>(null)
   const timeRef = useRef(0)
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null)
@@ -149,8 +145,6 @@ export default function WavyBackground({ children }: WavyBackgroundProps) {
   }, [])
 
   return (
-    <div ref={containerRef} className="fixed inset-0 z-0 pointer-events-none">
-      {children}
-    </div>
+    <div ref={containerRef} className="fixed inset-0 z-0 pointer-events-none" />
   )
 } 
