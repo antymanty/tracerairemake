@@ -63,11 +63,11 @@ export default function ExploreModal({ isOpen, onClose }: ExploreModalProps) {
 
                     <div className="space-y-4">
                       {[
-                        { title: 'Neural Network Optimization', status: 'ONLINE', value: '99.98%', desc: 'Quantum-enhanced neural pathways efficiency' },
-                        { title: 'Deep Learning Protocols', status: 'ACTIVE', value: '1.2M', desc: 'Parameters processed per millisecond' },
-                        { title: 'Quantum Entanglement', status: 'SYNCED', value: '100%', desc: 'Stable quantum state across nodes' },
-                        { title: 'AI Ethics Framework', status: 'ENFORCED', value: '100%', desc: 'Operations within ethical boundaries' },
-                        { title: 'Autonomous Systems', status: 'LEARNING', value: '95%', desc: 'Self-improvement protocol capacity' }
+                        { title: 'Neural Network Optimization', status: 'ONLINE', value: '99.98%', displayValue: '99.98%', desc: 'Quantum-enhanced neural pathways efficiency' },
+                        { title: 'Deep Learning Protocols', status: 'ACTIVE', value: '92%', displayValue: '1.2M', desc: 'Parameters processed per millisecond' },
+                        { title: 'Quantum Entanglement', status: 'SYNCED', value: '100%', displayValue: '100%', desc: 'Stable quantum state across nodes' },
+                        { title: 'AI Ethics Framework', status: 'ENFORCED', value: '100%', displayValue: '100%', desc: 'Operations within ethical boundaries' },
+                        { title: 'Autonomous Systems', status: 'LEARNING', value: '95%', displayValue: '95%', desc: 'Self-improvement protocol capacity' }
                       ].map((item, index) => (
                         <motion.div
                           key={item.title}
@@ -90,7 +90,7 @@ export default function ExploreModal({ isOpen, onClose }: ExploreModalProps) {
                           </div>
                           <div className="flex justify-between text-sm">
                             <span className="text-white/50">{item.desc}</span>
-                            <span className="text-white/90">{item.value}</span>
+                            <span className="text-white/90">{item.displayValue}</span>
                           </div>
                         </motion.div>
                       ))}
@@ -149,6 +149,10 @@ export default function ExploreModal({ isOpen, onClose }: ExploreModalProps) {
 
           <div className="absolute bottom-6 left-6 text-white/50 text-sm font-mono">
             Click and drag to rotate • Scroll to zoom
+          </div>
+
+          <div className="absolute bottom-6 right-6 text-white/50 text-sm font-mono">
+            TraceAI v1.0.2-alpha • Build 20231214
           </div>
         </motion.div>
       )}

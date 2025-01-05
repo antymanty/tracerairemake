@@ -18,10 +18,10 @@ interface DataParticle {
 }
 
 const CLUSTERS = [
-  { x: -400, y: 100, z: 0, color: '#ff4444', size: 40 },  // Red cluster
-  { x: 0, y: 200, z: 0, color: '#ffdd44', size: 50 },     // Yellow cluster
-  { x: 400, y: 100, z: 0, color: '#44ddff', size: 45 },   // Blue cluster
-  { x: 0, y: -100, z: 0, color: '#ffaa44', size: 35 }     // Orange cluster
+  { x: -400, y: 200, z: 100, color: '#ff4444', size: 40 },  // Red cluster
+  { x: 0, y: 300, z: 100, color: '#ffdd44', size: 50 },     // Yellow cluster
+  { x: 400, y: 200, z: 100, color: '#44ddff', size: 45 },   // Blue cluster
+  { x: 0, y: 0, z: 100, color: '#ffaa44', size: 35 }     // Orange cluster
 ]
 
 export default function NeuralBackground({ children }: NeuralBackgroundProps) {
@@ -127,7 +127,7 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
       scene = new THREE.Scene()
       sceneRef.current = scene
 
-      // Create circuit board base
+      // Create circuit board base first
       const circuitGeometry = new THREE.PlaneGeometry(2000, 2000, 20, 20)
       const circuitMaterial = new THREE.MeshBasicMaterial({
         color: 0x0a2a3f,
@@ -137,8 +137,42 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
       })
       const circuit = new THREE.Mesh(circuitGeometry, circuitMaterial)
       circuit.rotation.x = -Math.PI / 2
-      circuit.position.y = -200
+      circuit.position.y = -300
       scene.add(circuit)
+
+      // Create more connections between clusters
+      const createInterClusterConnections = () => {
+        for (let i = 0; i < CLUSTERS.length; i++) {
+          for (let j = i + 1; j < CLUSTERS.length; j++) {
+            const cluster1 = CLUSTERS[i]
+            const cluster2 = CLUSTERS[j]
+            const distance = Math.sqrt(
+              Math.pow(cluster1.x - cluster2.x, 2) +
+              Math.pow(cluster1.y - cluster2.y, 2)
+            )
+            
+            if (distance < 800) { // Increased connection distance
+              const lineGeometry = new THREE.BufferGeometry()
+              const linePositions = [
+                cluster1.x, cluster1.y, cluster1.z,
+                cluster2.x, cluster2.y, cluster2.z
+              ]
+              lineGeometry.setAttribute('position', new THREE.Float32BufferAttribute(linePositions, 3))
+
+              const lineMaterial = new THREE.LineBasicMaterial({
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0.1,
+                blending: THREE.AdditiveBlending
+              })
+
+              const line = new THREE.Line(lineGeometry, lineMaterial)
+              scene.add(line)
+              linesRef.current.push(line)
+            }
+          }
+        }
+      }
 
       // Create nodes for each cluster
       CLUSTERS.forEach((cluster, clusterIndex) => {
@@ -187,7 +221,7 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
               Math.pow(positions[i + 2] - positions[j + 2], 2)
             )
 
-            if (distance < 100 && Math.random() > 0.85) {
+            if (distance < 200) { // Increased from 100 to 200
               const lineGeometry = new THREE.BufferGeometry()
               const linePositions = [
                 positions[i], positions[i + 1], positions[i + 2],
@@ -198,7 +232,7 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
               const lineMaterial = new THREE.LineBasicMaterial({
                 color: cluster.color,
                 transparent: true,
-                opacity: 0.2,
+                opacity: 0.15, // Reduced opacity since there will be more lines
                 blending: THREE.AdditiveBlending
               })
 
@@ -214,25 +248,33 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
           const prevCluster = nodesRef.current[clusterIndex - 1]
           const prevPositions = prevCluster.geometry.attributes.position.array
           
-          for (let i = 0; i < positions.length; i += 30) {
-            for (let j = 0; j < prevPositions.length; j += 30) {
-              const lineGeometry = new THREE.BufferGeometry()
-              const linePositions = [
-                positions[i], positions[i + 1], positions[i + 2],
-                prevPositions[j], prevPositions[j + 1], prevPositions[j + 2]
-              ]
-              lineGeometry.setAttribute('position', new THREE.Float32BufferAttribute(linePositions, 3))
+          for (let i = 0; i < positions.length; i += 15) { // Reduced step from 30 to 15
+            for (let j = 0; j < prevPositions.length; j += 15) { // Reduced step from 30 to 15
+              const distance = Math.sqrt(
+                Math.pow(positions[i] - prevPositions[j], 2) +
+                Math.pow(positions[i + 1] - prevPositions[j + 1], 2) +
+                Math.pow(positions[i + 2] - prevPositions[j + 2], 2)
+              )
 
-              const lineMaterial = new THREE.LineBasicMaterial({
-                color: 0xffffff,
-                transparent: true,
-                opacity: 0.1,
-                blending: THREE.AdditiveBlending
-              })
+              if (distance < 600) { // Added distance check
+                const lineGeometry = new THREE.BufferGeometry()
+                const linePositions = [
+                  positions[i], positions[i + 1], positions[i + 2],
+                  prevPositions[j], prevPositions[j + 1], prevPositions[j + 2]
+                ]
+                lineGeometry.setAttribute('position', new THREE.Float32BufferAttribute(linePositions, 3))
 
-              const line = new THREE.Line(lineGeometry, lineMaterial)
-              scene.add(line)
-              linesRef.current.push(line)
+                const lineMaterial = new THREE.LineBasicMaterial({
+                  color: 0xffffff,
+                  transparent: true,
+                  opacity: 0.08, // Reduced opacity
+                  blending: THREE.AdditiveBlending
+                })
+
+                const line = new THREE.Line(lineGeometry, lineMaterial)
+                scene.add(line)
+                linesRef.current.push(line)
+              }
             }
           }
         }
