@@ -26,7 +26,7 @@ export default function ParticlePreloader({ onLoadingComplete }: ParticlePreload
         clearInterval(timer)
         currentProgress = 100
         setIsComplete(true)
-        setTimeout(onLoadingComplete, 1000) // Delay transition for animation
+        onLoadingComplete() // Remove delay for immediate transition
       }
       setProgress(currentProgress)
     }, interval)
@@ -35,11 +35,11 @@ export default function ParticlePreloader({ onLoadingComplete }: ParticlePreload
   }, [onLoadingComplete])
 
   return (
-    <>
-      <AnimatePresence>
+    <div className="bg-black">
+      <AnimatePresence mode="wait">
         {!isComplete && (
           <motion.div 
-            className="fixed inset-0 z-50"
+            className="fixed inset-0 z-50 bg-black"
             exit={{ opacity: 0 }}
             transition={{ duration: 1, ease: "easeInOut" }}
           >
@@ -90,18 +90,6 @@ export default function ParticlePreloader({ onLoadingComplete }: ParticlePreload
         )}
       </AnimatePresence>
 
-      {/* Black overlay for transition */}
-      <AnimatePresence>
-        {isComplete && (
-          <motion.div 
-            className="fixed inset-0 bg-black z-[60]"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 1, ease: "easeInOut" }}
-          />
-        )}
-      </AnimatePresence>
-
       {/* Add keyframes for shimmer animation */}
       <style jsx global>{`
         @keyframes shimmer {
@@ -113,6 +101,6 @@ export default function ParticlePreloader({ onLoadingComplete }: ParticlePreload
           }
         }
       `}</style>
-    </>
+    </div>
   )
 } 
