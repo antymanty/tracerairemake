@@ -10,7 +10,7 @@ import CountdownWindow from './CountdownWindow'
 
 export default function Hero() {
   return (
-    <motion.section
+    <motion.section 
       className="relative min-h-screen bg-black overflow-hidden"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -21,7 +21,7 @@ export default function Hero() {
         <GrainEffect />
       </div>
       <div className="container mx-auto px-6 pt-32 text-center relative z-10">
-        <motion.h1
+        <motion.h1 
           className="text-7xl font-bold tracking-tighter mb-4 text-white"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -29,7 +29,7 @@ export default function Hero() {
         >
           Tracer<span className="text-white">AI</span>
         </motion.h1>
-        <motion.p
+        <motion.p 
           className="text-xl text-white/90 mb-12 font-light"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -51,7 +51,7 @@ export default function Hero() {
             <ButtonGrainEffect />
           </div>
           <div className="relative">
-            <RainbowButton onClick={() => window.open('https://pump.fun/coin/DD2xGBXJo7AP1wAZdjx4MLLVdCxj2PkXRMyhbnv9pump', '_blank')}>
+            <RainbowButton onClick={() => window.open('https://pump.fun', '_blank')}>
               <ExternalLink className="w-5 h-5 mr-2" />
               pump.fun
             </RainbowButton>
