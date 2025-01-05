@@ -41,9 +41,6 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
 
     let camera: THREE.PerspectiveCamera
     let scene: THREE.Scene
-    let mouseX = 0, mouseY = 0
-    let windowHalfX = window.innerWidth / 2
-    let windowHalfY = window.innerHeight / 2
     let targetZ = 1000
 
     const createDataParticle = (line: THREE.Line, color: string, isInterCluster: boolean = false) => {
@@ -346,12 +343,15 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
     }
 
     const onWindowResize = () => {
-      windowHalfX = window.innerWidth / 2
-      windowHalfY = window.innerHeight / 2
+      if (!containerRef.current) return
+
       camera.aspect = window.innerWidth / window.innerHeight
       camera.updateProjectionMatrix()
+
       rendererRef.current?.setSize(window.innerWidth, window.innerHeight)
     }
+
+    window.addEventListener('resize', onWindowResize)
 
     const animate = () => {
       if (!rendererRef.current || !sceneRef.current) return

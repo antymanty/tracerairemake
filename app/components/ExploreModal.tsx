@@ -29,19 +29,19 @@ export default function ExploreModal({ isOpen, onClose }: ExploreModalProps) {
           <AnimatePresence>
             {showInfo && (
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 20 }}
-                className="absolute inset-x-4 top-20 md:inset-x-auto md:left-1/2 md:-translate-x-1/2 md:w-[800px] z-50"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="absolute left-4 top-20 w-[400px] z-50"
               >
                 <div className="bg-black/80 backdrop-blur-sm rounded-lg p-8 text-white font-mono">
-                  <h1 className="text-3xl font-bold mb-4 text-center">TraceAI Protocol</h1>
-                  <p className="text-white/70 text-center mb-8">
+                  <h1 className="text-2xl font-bold mb-4">TraceAI Protocol</h1>
+                  <p className="text-white/70 mb-8 text-sm">
                     Advanced artificial intelligence system utilizing quantum computing and neural
                     networks to revolutionize data processing and analysis.
                   </p>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-6">
                     <div className="space-y-2">
                       <div className="flex justify-between">
                         <h3>Neural Network Optimization</h3>

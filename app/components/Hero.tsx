@@ -55,9 +55,20 @@ export default function Hero() {
             </RainbowButton>
             <ButtonGrainEffect />
           </div>
+        </motion.div>
+
+        <motion.div
+          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.8, delay: 1.1 }}
+        >
           <div className="relative">
-            <RainbowButton onClick={() => setIsExploreOpen(true)}>
-              <Cpu className="w-5 h-5 mr-2" />
+            <RainbowButton 
+              onClick={() => setIsExploreOpen(true)}
+              className="text-lg px-8 py-4"
+            >
+              <Cpu className="w-6 h-6 mr-3" />
               Explore Protocol
             </RainbowButton>
             <ButtonGrainEffect />
