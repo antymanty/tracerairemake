@@ -14,21 +14,35 @@ const MESSAGES = [
   "Harmonizing quantum fluctuations...",
 ]
 
+const STORAGE_KEY = 'countdown_start_time'
+
 export default function CountdownWindow() {
   const [progress, setProgress] = useState(0)
   const [message, setMessage] = useState(MESSAGES[0])
 
   useEffect(() => {
-    // Get current time
-    const now = new Date()
-    const startTime = new Date(now)
-    
-    // If it's past 23:00, start now
-    if (now.getHours() >= 23) {
-      startTime.setTime(now.getTime())
+    // Try to get saved start time
+    const savedStartTime = localStorage.getItem(STORAGE_KEY)
+    let startTime: Date
+
+    if (!savedStartTime) {
+      // If no saved time, set up new start time
+      const now = new Date()
+      startTime = new Date(now)
+      
+      // If it's past 23:00, start now
+      if (now.getHours() >= 23) {
+        startTime.setTime(now.getTime())
+      } else {
+        // Otherwise, wait for 23:00
+        startTime.setHours(23, 0, 0, 0)
+      }
+
+      // Save start time
+      localStorage.setItem(STORAGE_KEY, startTime.toISOString())
     } else {
-      // Otherwise, wait for 23:00
-      startTime.setHours(23, 0, 0, 0)
+      // Use saved start time
+      startTime = new Date(savedStartTime)
     }
 
     // Set end time to 1 hour and 20 minutes after start
@@ -43,9 +57,10 @@ export default function CountdownWindow() {
         return
       }
 
-      // If we're past end time, progress is 100
+      // If we're past end time, stay at 100%
       if (currentTime > endTime) {
         setProgress(100)
+        setMessage(MESSAGES[MESSAGES.length - 1])
         return
       }
 
@@ -78,13 +93,13 @@ export default function CountdownWindow() {
 
   return (
     <motion.div
-      className="absolute w-[500px] z-20"
+      className="absolute w-[90%] md:w-[500px] max-w-[500px] z-20 px-4 md:px-0"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.8, delay: 1.2 }}
     >
       <div 
-        className="relative bg-black/50 backdrop-blur-md border border-white/10 rounded-xl p-6"
+        className="relative bg-black/50 backdrop-blur-md border border-white/10 rounded-xl p-4 md:p-6"
         style={{
           boxShadow: '0 0 5px rgba(255, 255, 255, 0.05), 0 0 10px rgba(255, 255, 255, 0.025), inset 0 0 5px rgba(255, 255, 255, 0.025)'
         }}
@@ -92,8 +107,8 @@ export default function CountdownWindow() {
         <ButtonGrainEffect />
         <div className="relative z-10">
           <div className="flex justify-between items-center mb-4">
-            <div className="text-sm text-white/70 font-mono">INITIALIZATION SEQUENCE</div>
-            <div className="text-sm text-white/70 font-mono">{progress.toFixed(2)}%</div>
+            <div className="text-xs md:text-sm text-white/70 font-mono">INITIALIZATION SEQUENCE</div>
+            <div className="text-xs md:text-sm text-white/70 font-mono">{progress.toFixed(2)}%</div>
           </div>
           
           <div className="h-1 bg-white/10 rounded-full mb-4 overflow-hidden">
@@ -113,7 +128,7 @@ export default function CountdownWindow() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.5 }}
-            className="text-sm text-white/50 font-mono text-center"
+            className="text-xs md:text-sm text-white/50 font-mono text-center"
           >
             {message}
           </motion.div>
