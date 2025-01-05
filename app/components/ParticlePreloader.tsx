@@ -35,7 +35,7 @@ export default function ParticlePreloader({ onLoadingComplete }: ParticlePreload
   }, [onLoadingComplete])
 
   return (
-    <div>
+    <>
       <AnimatePresence>
         {!isComplete && (
           <motion.div 
@@ -90,6 +90,18 @@ export default function ParticlePreloader({ onLoadingComplete }: ParticlePreload
         )}
       </AnimatePresence>
 
+      {/* Black overlay for transition */}
+      <AnimatePresence>
+        {isComplete && (
+          <motion.div 
+            className="fixed inset-0 bg-black z-[60]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 1, ease: "easeInOut" }}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Add keyframes for shimmer animation */}
       <style jsx global>{`
         @keyframes shimmer {
@@ -101,6 +113,6 @@ export default function ParticlePreloader({ onLoadingComplete }: ParticlePreload
           }
         }
       `}</style>
-    </div>
+    </>
   )
 } 
