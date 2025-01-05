@@ -2,8 +2,10 @@
 
 import VantaBackground from './VantaBackground'
 import GrainEffect from './GrainEffect'
+import ButtonGrainEffect from './ButtonGrainEffect'
 import { motion } from 'framer-motion'
 import { Twitter, ExternalLink } from 'lucide-react'
+import { RainbowButton } from '@/components/ui/rainbow-button'
 
 export default function Hero() {
   return (
@@ -11,15 +13,15 @@ export default function Hero() {
       <VantaBackground>
         <div className="container mx-auto px-6 py-16 text-center relative z-10">
           <motion.h1 
-            className="text-7xl font-bold tracking-tighter mb-4 bg-clip-text text-transparent bg-gradient-to-r from-color-3 via-color-4 to-color-2"
+            className="text-7xl font-bold tracking-tighter mb-4 text-white"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.5 }}
           >
-            Tracer<span className="text-color-1">AI</span>
+            Tracer<span className="text-white">AI</span>
           </motion.h1>
           <motion.p 
-            className="text-xl text-gray-300/90 mb-12 font-light"
+            className="text-xl text-white/90 mb-12 font-light"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.7 }}
@@ -32,24 +34,20 @@ export default function Hero() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.9 }}
           >
-            <a 
-              href="https://twitter.com/tracerai" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 px-8 py-3 rounded-full bg-[#1DA1F2]/10 text-[#1DA1F2] hover:bg-[#1DA1F2]/20 transition-all font-medium"
-            >
-              <Twitter className="w-5 h-5" />
-              Twitter
-            </a>
-            <a 
-              href="https://pump.fun" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 px-8 py-3 rounded-full bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 transition-all font-medium"
-            >
-              <ExternalLink className="w-5 h-5" />
-              pump.fun
-            </a>
+            <div className="relative">
+              <RainbowButton onClick={() => window.open('https://twitter.com/tracerai', '_blank')}>
+                <Twitter className="w-5 h-5 mr-2" />
+                Twitter
+              </RainbowButton>
+              <ButtonGrainEffect />
+            </div>
+            <div className="relative">
+              <RainbowButton onClick={() => window.open('https://pump.fun', '_blank')}>
+                <ExternalLink className="w-5 h-5 mr-2" />
+                pump.fun
+              </RainbowButton>
+              <ButtonGrainEffect />
+            </div>
           </motion.div>
         </div>
       </VantaBackground>
