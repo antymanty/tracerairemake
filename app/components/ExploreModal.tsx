@@ -34,75 +34,98 @@ export default function ExploreModal({ isOpen, onClose }: ExploreModalProps) {
                 exit={{ opacity: 0, x: -20 }}
                 className="absolute left-4 top-20 w-[400px] z-50"
               >
-                <div className="bg-black/80 backdrop-blur-sm rounded-lg p-8 text-white font-mono">
-                  <h1 className="text-2xl font-bold mb-4">TraceAI Protocol</h1>
-                  <p className="text-white/70 mb-8 text-sm">
-                    Advanced artificial intelligence system utilizing quantum computing and neural
-                    networks to revolutionize data processing and analysis.
-                  </p>
+                <div className="relative bg-black/40 backdrop-blur-md rounded-lg border border-white/10 overflow-hidden">
+                  {/* Animated gradient border */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/20 via-cyan-500/20 to-blue-500/20 animate-gradient-xy" />
+                  
+                  {/* Content */}
+                  <div className="relative p-8">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 via-cyan-500 to-blue-500" />
+                    
+                    <motion.h1 
+                      className="text-2xl font-bold mb-2 bg-gradient-to-r from-emerald-400 via-cyan-400 to-blue-400 bg-clip-text text-transparent"
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.2 }}
+                    >
+                      TraceAI Protocol
+                    </motion.h1>
+                    
+                    <motion.p 
+                      className="text-white/70 mb-8 text-sm"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.3 }}
+                    >
+                      Advanced artificial intelligence system utilizing quantum computing and neural
+                      networks to revolutionize data processing and analysis.
+                    </motion.p>
 
-                  <div className="space-y-6">
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <h3>Neural Network Optimization</h3>
-                        <span className="text-emerald-400">ONLINE</span>
+                    <div className="space-y-4">
+                      {[
+                        { title: 'Neural Network Optimization', status: 'ONLINE', value: '99.98%', desc: 'Quantum-enhanced neural pathways efficiency' },
+                        { title: 'Deep Learning Protocols', status: 'ACTIVE', value: '1.2M', desc: 'Parameters processed per millisecond' },
+                        { title: 'Quantum Entanglement', status: 'SYNCED', value: '100%', desc: 'Stable quantum state across nodes' },
+                        { title: 'AI Ethics Framework', status: 'ENFORCED', value: '100%', desc: 'Operations within ethical boundaries' },
+                        { title: 'Autonomous Systems', status: 'LEARNING', value: '95%', desc: 'Self-improvement protocol capacity' }
+                      ].map((item, index) => (
+                        <motion.div
+                          key={item.title}
+                          className="bg-black/20 rounded-lg p-4 border border-white/5"
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 0.4 + index * 0.1 }}
+                        >
+                          <div className="flex justify-between items-start mb-2">
+                            <h3 className="text-white/90 font-medium">{item.title}</h3>
+                            <span className="text-emerald-400 text-sm">{item.status}</span>
+                          </div>
+                          <div className="w-full h-2 bg-white/5 rounded-full mb-2">
+                            <motion.div
+                              className="h-full bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-full"
+                              initial={{ width: 0 }}
+                              animate={{ width: item.value }}
+                              transition={{ delay: 0.6 + index * 0.1, duration: 1 }}
+                            />
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-white/50">{item.desc}</span>
+                            <span className="text-white/90">{item.value}</span>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+
+                    <motion.div 
+                      className="mt-8 space-y-4"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 1 }}
+                    >
+                      <h3 className="text-white/90 font-medium mb-4">SYSTEM ARCHITECTURE</h3>
+                      <div className="grid grid-cols-3 gap-4">
+                        {[
+                          { name: 'Quantum Core', value: '98%' },
+                          { name: 'Neural Engine', value: '95%' },
+                          { name: 'Ethics Module', value: '100%' }
+                        ].map((module, index) => (
+                          <div key={module.name} className="space-y-2">
+                            <div className="h-2 bg-black/40 rounded overflow-hidden">
+                              <motion.div
+                                className="h-full bg-gradient-to-r from-emerald-500 to-cyan-500"
+                                initial={{ width: 0 }}
+                                animate={{ width: module.value }}
+                                transition={{ delay: 1.2 + index * 0.1, duration: 1 }}
+                              />
+                            </div>
+                            <div className="text-center text-sm">
+                              <div className="text-white/90">{module.name}</div>
+                              <div className="text-emerald-400">{module.value}</div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                      <p className="text-white/50 text-sm">
-                        Quantum-enhanced neural pathways operating at 99.98% efficiency
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <h3>Deep Learning Protocols</h3>
-                        <span className="text-emerald-400">ACTIVE</span>
-                      </div>
-                      <p className="text-white/50 text-sm">
-                        Processing 1.2M parameters per millisecond
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <h3>Quantum Entanglement</h3>
-                        <span className="text-emerald-400">SYNCED</span>
-                      </div>
-                      <p className="text-white/50 text-sm">
-                        Maintaining stable quantum state across all nodes
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <h3>AI Ethics Framework</h3>
-                        <span className="text-emerald-400">ENFORCED</span>
-                      </div>
-                      <p className="text-white/50 text-sm">
-                        All operations within established ethical boundaries
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <h3>Autonomous Systems</h3>
-                        <span className="text-emerald-400">LEARNING</span>
-                      </div>
-                      <p className="text-white/50 text-sm">
-                        Self-improvement protocols running at optimal capacity
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="mt-8">
-                    <h3 className="mb-4">SYSTEM ARCHITECTURE</h3>
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="h-2 bg-emerald-400/30 rounded"></div>
-                      <div className="h-2 bg-emerald-400/30 rounded"></div>
-                      <div className="h-2 bg-emerald-400/30 rounded"></div>
-                      <div className="text-center text-sm text-white/50">Quantum Core</div>
-                      <div className="text-center text-sm text-white/50">Neural Engine</div>
-                      <div className="text-center text-sm text-white/50">Ethics Module</div>
-                    </div>
+                    </motion.div>
                   </div>
                 </div>
               </motion.div>
