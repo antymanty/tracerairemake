@@ -1,21 +1,19 @@
 'use client'
 
-import GrainEffect from './GrainEffect'
 import ButtonGrainEffect from './ButtonGrainEffect'
 import { motion } from 'framer-motion'
-import { Twitter, ExternalLink } from 'lucide-react'
+import { Twitter, ExternalLink, Cpu } from 'lucide-react'
 import { RainbowButton } from '@/components/ui/rainbow-button'
 import WavyBackground from './WavyBackground'
-import CountdownWindow from './CountdownWindow'
+import ExploreModal from './ExploreModal'
+import { useState } from 'react'
+import GrainEffect from './GrainEffect'
 
 export default function Hero() {
+  const [isExploreOpen, setIsExploreOpen] = useState(false)
+
   return (
-    <motion.section 
-      className="relative min-h-screen bg-black overflow-hidden"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 1 }}
-    >
+    <section className="relative min-h-screen bg-black overflow-hidden">
       <WavyBackground />
       <div className="absolute inset-0 pointer-events-none">
         <GrainEffect />
@@ -38,13 +36,13 @@ export default function Hero() {
           Empowering the future with intelligent tracking solutions
         </motion.p>
         <motion.div
-          className="flex items-center justify-center gap-6"
+          className="flex flex-col md:flex-row items-center justify-center gap-6"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.9 }}
         >
           <div className="relative">
-            <RainbowButton onClick={() => window.open('https://x.com/Tracer AI_', '_blank')}>
+            <RainbowButton onClick={() => window.open('https://x.com/tracerai_', '_blank')}>
               <Twitter className="w-5 h-5 mr-2" />
               Twitter
             </RainbowButton>
@@ -57,11 +55,19 @@ export default function Hero() {
             </RainbowButton>
             <ButtonGrainEffect />
           </div>
+          <div className="relative">
+            <RainbowButton onClick={() => setIsExploreOpen(true)}>
+              <Cpu className="w-5 h-5 mr-2" />
+              Explore Protocol
+            </RainbowButton>
+            <ButtonGrainEffect />
+          </div>
         </motion.div>
       </div>
-      <div className="flex items-center justify-center absolute inset-0">
-        <CountdownWindow />
-      </div>
-    </motion.section>
+      <ExploreModal 
+        isOpen={isExploreOpen}
+        onClose={() => setIsExploreOpen(false)}
+      />
+    </section>
   )
 } 
