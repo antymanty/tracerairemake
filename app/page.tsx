@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Hero from '@/app/components/Hero'
-import ParticlePreloader from '@/app/components/ParticlePreloader'
+import CellsLoader from '@/app/components/CellsLoader'
 
 export default function Home() {
   const [loading, setLoading] = useState(true)
@@ -10,7 +10,7 @@ export default function Home() {
   return (
     <main className="bg-black">
       {loading ? (
-        <ParticlePreloader onLoadingComplete={() => setLoading(false)} />
+        <CellsLoader onLoadingComplete={() => setLoading(false)} />
       ) : (
         <Hero />
       )}
