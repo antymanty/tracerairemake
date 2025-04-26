@@ -72,7 +72,8 @@ const config: Config = {
   		animation: {
   			rainbow: 'rainbow var(--speed, 2s) infinite linear',
   			'star-movement-top': 'star-movement-top linear infinite alternate',
-  			'star-movement-bottom': 'star-movement-bottom linear infinite alternate'
+  			'star-movement-bottom': 'star-movement-bottom linear infinite alternate',
+  			'shine': 'shine 4s linear infinite',
   		},
   		keyframes: {
   			rainbow: {
@@ -90,7 +91,11 @@ const config: Config = {
   			'star-movement-bottom': {
   				'0%': { transform: 'translate(0%, 0%)', opacity: '1' },
   				'100%': { transform: 'translate(-100%, 0%)', opacity: '0' },
-  			}
+  			},
+  			'shine': {
+  				'0%': { transform: 'translateX(-100%)' },
+  				'100%': { transform: 'translateX(100%)' }
+  			},
   		}
   	}
   },
