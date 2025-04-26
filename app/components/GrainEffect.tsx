@@ -1,21 +1,36 @@
 'use client'
-import { useEffect } from "react";
+import { useEffect, useState, memo } from "react";
 
-export default function GrainEffect() {
+// Use memoization to prevent unnecessary re-rendering
+const GrainEffect = memo(function GrainEffect() {
+  const [noiseUrl, setNoiseUrl] = useState<string>('');
+
   useEffect(() => {
-    const noise = () => {
+    // Check if we already have a cached noise texture in the session
+    const cachedNoise = sessionStorage.getItem('noise-texture');
+    
+    if (cachedNoise) {
+      setNoiseUrl(cachedNoise);
+      return;
+    }
+    
+    // Generate the noise texture only once
+    const generateNoise = () => {
+      // Use a smaller canvas for better performance
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
-      const w = canvas.width = 100;
-      const h = canvas.height = 100;
+      const w = canvas.width = 64; // Reduced from 100
+      const h = canvas.height = 64; // Reduced from 100
       
       if (!ctx) return '';
 
       const imageData = ctx.createImageData(w, h);
       const buffer32 = new Uint32Array(imageData.data.buffer);
       
+      // Generate fewer noise pixels for better performance
       for (let i = 0; i < buffer32.length; i++) {
-        if (Math.random() < 0.5) {
+        // Less frequent noise (30% instead of 50%)
+        if (Math.random() < 0.3) {
           buffer32[i] = 0xff000000;
         } else {
           buffer32[i] = 0xffffffff;
@@ -23,11 +38,24 @@ export default function GrainEffect() {
       }
       
       ctx.putImageData(imageData, 0, 0);
-      return canvas.toDataURL();
+      
+      // Use a lower quality setting for toDataURL
+      return canvas.toDataURL('image/jpeg', 0.5);
     };
 
-    document.documentElement.style.setProperty('--noise', `url(${noise()})`);
+    // Generate the noise and cache it
+    const noiseDataUrl = generateNoise();
+    setNoiseUrl(noiseDataUrl);
+    
+    try {
+      sessionStorage.setItem('noise-texture', noiseDataUrl);
+    } catch (e) {
+      console.warn('Failed to cache noise texture');
+    }
   }, []);
+
+  // Don't render anything if we don't have a noise URL yet
+  if (!noiseUrl) return null;
 
   return (
     <div className="pointer-events-none absolute inset-0 z-[5]">
@@ -35,12 +63,14 @@ export default function GrainEffect() {
         style={{
           position: 'absolute',
           inset: 0,
-          backgroundImage: 'var(--noise)',
+          backgroundImage: `url(${noiseUrl})`,
           backgroundRepeat: 'repeat',
-          opacity: 0.015,
+          opacity: 0.01, // Reduced opacity from 0.015
           mixBlendMode: 'overlay'
         }}
       />
     </div>
   );
-} 
+});
+
+export default GrainEffect; 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useCallback } from 'react'
 import * as THREE from 'three'
 import gsap from 'gsap'
 
@@ -17,11 +17,11 @@ interface DataParticle {
   line: THREE.Line
 }
 
+// Reduced clusters from 4 to 3
 const CLUSTERS = [
-  { x: -400, y: 200, z: 100, color: '#ff4444', size: 40 },  // Red cluster
-  { x: 0, y: 300, z: 100, color: '#ffdd44', size: 50 },     // Yellow cluster
-  { x: 400, y: 200, z: 100, color: '#44ddff', size: 45 },   // Blue cluster
-  { x: 0, y: 0, z: 100, color: '#ffaa44', size: 35 }     // Orange cluster
+  { x: -400, y: 200, z: 100, color: '#ff4444', size: 30 },  // Reduced size from 40 to 30
+  { x: 0, y: 300, z: 100, color: '#ffdd44', size: 35 },     // Reduced size from 50 to 35
+  { x: 400, y: 200, z: 100, color: '#44ddff', size: 30 }    // Reduced size from 45 to 30
 ]
 
 export default function NeuralBackground({ children }: NeuralBackgroundProps) {
@@ -35,6 +35,47 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
   const isDraggingRef = useRef(false)
   const previousMousePositionRef = useRef({ x: 0, y: 0 })
   const rotationRef = useRef({ x: 0, y: 0 })
+  const frameRef = useRef<number>(0)
+
+  // Memoize createDataParticle for better performance
+  const createDataParticle = useCallback((line: THREE.Line, color: string, isInterCluster: boolean = false, scene: THREE.Scene) => {
+    // Even smaller particles for better performance
+    const geometry = new THREE.SphereGeometry(isInterCluster ? 0.3 : 0.7, 6, 6) // Reduced geometry detail
+    const material = new THREE.MeshBasicMaterial({
+      color: new THREE.Color(color),
+      transparent: true,
+      opacity: 0.8,
+      blending: THREE.AdditiveBlending
+    })
+    const mesh = new THREE.Mesh(geometry, material)
+
+    // Get start and end points from line geometry
+    const positions = line.geometry.attributes.position.array
+    const startPoint = new THREE.Vector3(positions[0], positions[1], positions[2])
+    const endPoint = new THREE.Vector3(positions[3], positions[4], positions[5])
+
+    // Simplified glow effect
+    const glowGeometry = new THREE.SphereGeometry(isInterCluster ? 1 : 2, 8, 8) // Reduced complexity
+    const glowMaterial = new THREE.MeshBasicMaterial({
+      color: new THREE.Color(color),
+      transparent: true,
+      opacity: 0.3, // Reduced opacity
+      blending: THREE.AdditiveBlending
+    })
+    const glow = new THREE.Mesh(glowGeometry, glowMaterial)
+    mesh.add(glow)
+
+    scene.add(mesh)
+
+    return {
+      mesh,
+      startPoint,
+      endPoint,
+      progress: 0,
+      speed: isInterCluster ? 0.03 + Math.random() * 0.01 : 0.01 + Math.random() * 0.01, // Less variation
+      line
+    }
+  }, [])
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -45,46 +86,7 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
     let scene: THREE.Scene
     let targetZ = 1000
 
-    const createDataParticle = (line: THREE.Line, color: string, isInterCluster: boolean = false) => {
-      // Smaller particles (1 unit for regular, 0.5 for inter-cluster)
-      const geometry = new THREE.SphereGeometry(isInterCluster ? 0.5 : 1, 8, 8)
-      const material = new THREE.MeshBasicMaterial({
-        color: new THREE.Color(color),
-        transparent: true,
-        opacity: 0.8,
-        blending: THREE.AdditiveBlending
-      })
-      const mesh = new THREE.Mesh(geometry, material)
-
-      // Get start and end points from line geometry
-      const positions = line.geometry.attributes.position.array
-      const startPoint = new THREE.Vector3(positions[0], positions[1], positions[2])
-      const endPoint = new THREE.Vector3(positions[3], positions[4], positions[5])
-
-      // Add glow effect (smaller for inter-cluster)
-      const glowGeometry = new THREE.SphereGeometry(isInterCluster ? 2 : 3, 16, 16)
-      const glowMaterial = new THREE.MeshBasicMaterial({
-        color: new THREE.Color(color),
-        transparent: true,
-        opacity: 0.4,
-        blending: THREE.AdditiveBlending
-      })
-      const glow = new THREE.Mesh(glowGeometry, glowMaterial)
-      mesh.add(glow)
-
-      scene.add(mesh)
-
-      return {
-        mesh,
-        startPoint,
-        endPoint,
-        progress: 0,
-        speed: isInterCluster ? 0.04 + Math.random() * 0.02 : 0.01 + Math.random() * 0.02, // Faster for inter-cluster
-        line
-      }
-    }
-
-    // Mouse event handlers for dragging
+    // Throttled window event handlers for better performance
     const onMouseDown = (event: MouseEvent) => {
       isDraggingRef.current = true
       previousMousePositionRef.current = {
@@ -93,8 +95,13 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
       }
     }
 
+    let lastMoveTime = 0
+    const moveThrottle = 16 // ~60fps
+    
     const onMouseMove = (event: MouseEvent) => {
-      if (isDraggingRef.current) {
+      const now = Date.now()
+      if (isDraggingRef.current && now - lastMoveTime > moveThrottle) {
+        lastMoveTime = now
         const deltaMove = {
           x: event.clientX - previousMousePositionRef.current.x,
           y: event.clientY - previousMousePositionRef.current.y
@@ -129,27 +136,27 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
       scene = new THREE.Scene()
       sceneRef.current = scene
 
-      // Create circuit board base first
-      const circuitGeometry = new THREE.PlaneGeometry(2000, 2000, 20, 20)
+      // Create circuit board base with reduced complexity
+      const circuitGeometry = new THREE.PlaneGeometry(2000, 2000, 10, 10) // Reduced from 20x20 to 10x10
       const circuitMaterial = new THREE.MeshBasicMaterial({
         color: 0x0a2a3f,
         wireframe: true,
         transparent: true,
-        opacity: 0.3
+        opacity: 0.2 // Reduced from 0.3
       })
       const circuit = new THREE.Mesh(circuitGeometry, circuitMaterial)
       circuit.rotation.x = -Math.PI / 2
       circuit.position.y = -300
       scene.add(circuit)
 
-      // Create nodes for each cluster
+      // Create nodes for each cluster with reduced complexity
       CLUSTERS.forEach((cluster) => {
         const nodeGeometry = new THREE.BufferGeometry()
         const nodePositions = []
         const nodeColors = []
         const clusterColor = new THREE.Color(cluster.color)
 
-        // Create nodes in a cluster pattern
+        // Create nodes in a cluster pattern with fewer nodes
         for (let i = 0; i < cluster.size; i++) {
           // Use gaussian distribution for more natural clustering
           const radius = Math.random() * 150
@@ -168,10 +175,10 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
         nodeGeometry.setAttribute('color', new THREE.Float32BufferAttribute(nodeColors, 3))
 
         const nodeMaterial = new THREE.PointsMaterial({
-          size: 4,
+          size: 3, // Reduced from 4
           vertexColors: true,
           transparent: true,
-          opacity: 0.8,
+          opacity: 0.7, // Reduced from 0.8
           blending: THREE.AdditiveBlending
         })
 
@@ -179,7 +186,7 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
         scene.add(nodes)
         nodesRef.current.push(nodes)
 
-        // Create connections within cluster
+        // Create connections within cluster with fewer connections
         const positions = nodeGeometry.attributes.position.array
         for (let i = 0; i < positions.length; i += 3) {
           for (let j = i + 3; j < positions.length; j += 3) {
@@ -189,8 +196,8 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
               Math.pow(positions[i + 2] - positions[j + 2], 2)
             )
 
-            // Increased connection probability and distance threshold
-            if (distance < 200 && Math.random() > 0.5) {
+            // Reduced connection probability for better performance
+            if (distance < 150 && Math.random() > 0.7) { // Changed from 200 and 0.5
               const lineGeometry = new THREE.BufferGeometry()
               const linePositions = [
                 positions[i], positions[i + 1], positions[i + 2],
@@ -201,7 +208,7 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
               const lineMaterial = new THREE.LineBasicMaterial({
                 color: cluster.color,
                 transparent: true,
-                opacity: 0.15,  // Reduced opacity since there will be more lines
+                opacity: 0.1,  // Reduced from 0.15
                 blending: THREE.AdditiveBlending
               })
 
@@ -212,46 +219,49 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
           }
         }
 
-        // Create coordinate labels
-        const canvas = document.createElement('canvas')
-        const ctx = canvas.getContext('2d')
-        canvas.width = 128
-        canvas.height = 64
+        // Create coordinate labels (simplify or skip for better performance)
+        if (cluster.size > 30) { // Only add labels to larger clusters
+          const canvas = document.createElement('canvas')
+          const ctx = canvas.getContext('2d')
+          canvas.width = 128
+          canvas.height = 64
 
-        if (ctx) {
-          ctx.fillStyle = 'rgba(0, 0, 0, 0)'
-          ctx.fillRect(0, 0, canvas.width, canvas.height)
-          
-          ctx.font = '16px monospace'
-          ctx.fillStyle = cluster.color
-          ctx.textAlign = 'center'
-          ctx.textBaseline = 'middle'
-          
-          const coords = `[${Math.round(cluster.x)}, ${Math.round(cluster.y)}]`
-          ctx.fillText(coords, canvas.width / 2, canvas.height / 2)
+          if (ctx) {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0)'
+            ctx.fillRect(0, 0, canvas.width, canvas.height)
+            
+            ctx.font = '16px monospace'
+            ctx.fillStyle = cluster.color
+            ctx.textAlign = 'center'
+            ctx.textBaseline = 'middle'
+            
+            const coords = `[${Math.round(cluster.x)}, ${Math.round(cluster.y)}]`
+            ctx.fillText(coords, canvas.width / 2, canvas.height / 2)
 
-          const texture = new THREE.Texture(canvas)
-          texture.needsUpdate = true
+            const texture = new THREE.Texture(canvas)
+            texture.needsUpdate = true
 
-          const spriteMaterial = new THREE.SpriteMaterial({
-            map: texture,
-            transparent: true,
-            opacity: 0.8
-          })
+            const spriteMaterial = new THREE.SpriteMaterial({
+              map: texture,
+              transparent: true,
+              opacity: 0.7 // Reduced from 0.8
+            })
 
-          const sprite = new THREE.Sprite(spriteMaterial)
-          sprite.position.set(cluster.x, cluster.y + 100, cluster.z)
-          sprite.scale.set(100, 50, 1)
-          scene.add(sprite)
-          textSpritesRef.current.push(sprite)
+            const sprite = new THREE.Sprite(spriteMaterial)
+            sprite.position.set(cluster.x, cluster.y + 100, cluster.z)
+            sprite.scale.set(100, 50, 1)
+            scene.add(sprite)
+            textSpritesRef.current.push(sprite)
+          }
         }
       })
 
       rendererRef.current = new THREE.WebGLRenderer({ 
         alpha: true,
-        antialias: true
+        antialias: true,
+        powerPreference: 'high-performance' // Add power preference for better performance
       })
-      rendererRef.current.setPixelRatio(window.devicePixelRatio)
+      rendererRef.current.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)) // Limit pixel ratio
       rendererRef.current.setSize(window.innerWidth, window.innerHeight)
       
       const canvas = rendererRef.current.domElement
@@ -263,10 +273,39 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
       
       container.appendChild(canvas)
 
+      // Throttled wheel event
+      let lastWheelTime = 0
+      const wheelThrottle = 100 // ms
+      const onWheel = (event: WheelEvent) => {
+        const now = Date.now()
+        if (now - lastWheelTime > wheelThrottle) {
+          lastWheelTime = now
+          targetZ = Math.max(500, Math.min(2000, targetZ + event.deltaY))
+        }
+      }
+
       window.addEventListener('wheel', onWheel)
+      
+      // Debounced resize handler
+      let resizeTimeout: number | null = null
+      const onWindowResize = () => {
+        if (resizeTimeout) {
+          window.clearTimeout(resizeTimeout)
+        }
+        
+        resizeTimeout = window.setTimeout(() => {
+          if (!containerRef.current) return
+
+          camera.aspect = window.innerWidth / window.innerHeight
+          camera.updateProjectionMatrix()
+
+          rendererRef.current?.setSize(window.innerWidth, window.innerHeight)
+        }, 100)
+      }
+
       window.addEventListener('resize', onWindowResize)
 
-      // Initialize data particles
+      // Initialize data particles (fewer particles)
       const initDataParticles = () => {
         // Clear existing particles
         dataParticlesRef.current.forEach(particle => {
@@ -274,31 +313,40 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
         })
         dataParticlesRef.current = []
 
-        // Create new particles on random lines
-        linesRef.current.forEach(line => {
-          if (!line || !line.material) return // Skip if line or material is undefined
+        // Create new particles on random lines (fewer particles)
+        const maxParticles = 20 // Limit total particles
+        let particleCount = 0
+        
+        for (let i = 0; i < linesRef.current.length && particleCount < maxParticles; i++) {
+          const line = linesRef.current[i]
+          if (!line || !line.material) continue
           
           const material = line.material as THREE.LineBasicMaterial
           const isInterCluster = material.color.getHex() === 0xffffff
           
-          if (Math.random() > (isInterCluster ? 0.8 : 0.7)) {
+          if (Math.random() > (isInterCluster ? 0.9 : 0.8)) {
             const particle = createDataParticle(
               line,
               material.color.getStyle(),
-              isInterCluster
+              isInterCluster,
+              scene
             )
             dataParticlesRef.current.push(particle)
+            particleCount++
           }
-        })
+        }
       }
 
       initDataParticles()
 
-      // Periodically create new particles
-      setInterval(() => {
-        if (Math.random() > 0.7 && linesRef.current.length > 0) {
+      // Periodically create new particles (less frequently)
+      const particleInterval = setInterval(() => {
+        // Limit number of active particles
+        if (dataParticlesRef.current.length >= 25) return
+        
+        if (Math.random() > 0.8 && linesRef.current.length > 0 && sceneRef.current) {
           const randomLine = linesRef.current[Math.floor(Math.random() * linesRef.current.length)]
-          if (!randomLine || !randomLine.material) return // Skip if line or material is undefined
+          if (!randomLine || !randomLine.material) return
           
           const material = randomLine.material as THREE.LineBasicMaterial
           const isInterCluster = material.color.getHex() === 0xffffff
@@ -306,36 +354,28 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
           const particle = createDataParticle(
             randomLine,
             material.color.getStyle(),
-            isInterCluster
+            isInterCluster,
+            sceneRef.current
           )
           dataParticlesRef.current.push(particle)
         }
-      }, 200)
+      }, 400) // Reduced frequency (from 200ms to 400ms)
+      
+      return particleInterval
     }
 
-    const onWheel = (event: WheelEvent) => {
-      targetZ = Math.max(500, Math.min(2000, targetZ + event.deltaY))
-    }
-
-    const onWindowResize = () => {
-      if (!containerRef.current) return
-
-      camera.aspect = window.innerWidth / window.innerHeight
-      camera.updateProjectionMatrix()
-
-      rendererRef.current?.setSize(window.innerWidth, window.innerHeight)
-    }
-
-    window.addEventListener('resize', onWindowResize)
+    const particleInterval = init()
 
     const animate = () => {
       if (!rendererRef.current || !sceneRef.current) return
 
       // Apply rotation from dragging
-      scene.rotation.x = rotationRef.current.x
-      scene.rotation.y = rotationRef.current.y
+      if (sceneRef.current) {
+        sceneRef.current.rotation.x = rotationRef.current.x
+        sceneRef.current.rotation.y = rotationRef.current.y
+      }
 
-      // Update data particles
+      // Update data particles (throttled)
       dataParticlesRef.current.forEach((particle, index) => {
         particle.progress += particle.speed
         
@@ -348,16 +388,22 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
           const newZ = particle.startPoint.z + (particle.endPoint.z - particle.startPoint.z) * particle.progress
           particle.mesh.position.set(newX, newY, newZ)
 
-          const pulse = Math.sin(Date.now() * 0.01) * 0.3 + 0.7
-          particle.mesh.children[0].scale.set(pulse, pulse, pulse)
+          // Less frequent pulse update (only every 4th frame)
+          if (frameRef.current % 4 === 0) {
+            const pulse = Math.sin(Date.now() * 0.005) * 0.2 + 0.8 // Reduced intensity
+            if (particle.mesh.children[0]) {
+              particle.mesh.children[0].scale.set(pulse, pulse, pulse)
+            }
+          }
         }
       })
+      
+      frameRef.current++
 
       camera.position.z += (targetZ - camera.position.z) * 0.05
       rendererRef.current.render(scene, camera)
     }
 
-    init()
     gsap.ticker.add(animate)
 
     return () => {
@@ -365,8 +411,6 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
       window.removeEventListener('mousedown', onMouseDown)
       window.removeEventListener('mousemove', onMouseMove)
       window.removeEventListener('mouseup', onMouseUp)
-      window.removeEventListener('wheel', onWheel)
-      window.removeEventListener('resize', onWindowResize)
       
       // Store ref values before cleanup
       const currentRenderer = rendererRef.current
@@ -392,8 +436,10 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
           container.removeChild(container.firstChild)
         }
       }
+      
+      clearInterval(particleInterval)
     }
-  }, [])
+  }, [createDataParticle])
 
   return (
     <div ref={containerRef} className="fixed inset-0 z-0">
