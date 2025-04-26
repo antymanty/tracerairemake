@@ -8,8 +8,8 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "Tracer AI",
-  description: "Empowering the future with intelligent tracking solutions",
+  title: "Kodai",
+  description: "Pioneering the convergence of AI and cellular science to revolutionize human health",
 };
 
 export default function RootLayout({

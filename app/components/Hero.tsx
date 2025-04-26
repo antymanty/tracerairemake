@@ -3,13 +3,13 @@
 import ButtonGrainEffect from './ButtonGrainEffect'
 import { motion } from 'framer-motion'
 import { Twitter, ExternalLink, Cpu } from 'lucide-react'
-import { RainbowButton } from '@/components/ui/rainbow-button'
 import GrainEffect from './GrainEffect'
 import ExploreModal from './ExploreModal'
 import { useState, useRef, useEffect } from 'react'
 import * as THREE from 'three'
 import CELLS from 'vanta/dist/vanta.cells.min'
 import { StarBorder } from '@/components/ui/star-border'
+import { GradientButton } from '@/components/ui/gradient-button'
 
 export default function Hero() {
   const [isExploreOpen, setIsExploreOpen] = useState(false)
@@ -19,7 +19,7 @@ export default function Hero() {
 
   useEffect(() => {
     if (!vantaEffect && vantaRef.current) {
-      // Lighter, cell-themed blue colors
+      // Blue color scheme instead of magenta/purple
       setVantaEffect(
         CELLS({
           el: vantaRef.current,
@@ -31,28 +31,28 @@ export default function Hero() {
           minWidth: 200.00,
           scale: 1.00,
           scaleMobile: 1.00,
-          color1: 0x60a5fa, // lighter blue
-          color2: 0x34d399, // teal/mint green for cellular feel
+          color1: 0x3b82f6, // blue
+          color2: 0x00ffff, // cyan
           size: 1.10,
           speed: 2.50 // faster animation speed
         })
       )
     }
     
-    // Create color shifting effect within a cell-appropriate palette
+    // Create ultra vibrant color shifting iridescent effect
     const interval = setInterval(() => {
       if (vantaEffect) {
         const newShift = (colorShift + 0.015) % 1 // faster color transition
         setColorShift(newShift)
         
-        // Use multiple sine waves for more complex effect
-        // Adjusted to lighter blue/teal/aqua spectrum for cellular look
-        const hue1 = 180 + (Math.sin(newShift * Math.PI * 2) * 0.5 + 0.5) * 40 // 180-220 (aqua to light blue)
-        const hue2 = 150 + (Math.sin((newShift + 0.25) * Math.PI * 2) * 0.5 + 0.5) * 30 // 150-180 (teal to aqua)
+        // Use multiple sine waves for more complex iridescent effect
+        // Adjusted to blue spectrum (200-280 degrees in HSL)
+        const hue1 = 200 + (Math.sin(newShift * Math.PI * 2) * 0.5 + 0.5) * 80
+        const hue2 = 180 + (Math.sin((newShift + 0.25) * Math.PI * 2) * 0.5 + 0.5) * 60
         
-        // Higher brightness for a lighter look
-        const color1 = hslToHex(hue1, 90, 75)
-        const color2 = hslToHex(hue2, 90, 70)
+        // Convert HSL to RGB hex with higher saturation (100%) and brightness (70%)
+        const color1 = hslToHex(hue1, 100, 70)
+        const color2 = hslToHex(hue2, 100, 60)
         
         vantaEffect.setOptions({
           color1: parseInt(color1.substring(1), 16),
@@ -87,40 +87,51 @@ export default function Hero() {
       </div>
       <div className="container mx-auto px-6 pt-32 text-center relative z-10">
         <motion.h1 
-          className="text-7xl font-bold tracking-tighter mb-4 text-white"
+          className="text-8xl font-bold tracking-tight mb-6 text-white bg-clip-text text-transparent bg-gradient-to-r from-white via-white/90 to-white/80"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.5 }}
         >
-          Tracer<span className="text-white">AI</span>
+          Kodai
         </motion.h1>
         <motion.p 
-          className="text-xl text-white/90 mb-12 font-light"
+          className="max-w-3xl mx-auto text-lg leading-relaxed text-white/80 mb-12 font-light tracking-wide"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.7 }}
         >
-          Empowering the future with intelligent tracking solutions
+          Pioneering the convergence of AI and cellular science to revolutionize human health.
+          <span className="block mt-3 text-white/70">
+            Our quantum-powered neural networks decode the language of cells, unlocking breakthrough therapies and advancing the frontiers of regenerative medicine.
+          </span>
         </motion.p>
         <motion.div
-          className="flex flex-col md:flex-row items-center justify-center gap-6"
+          className="flex flex-col md:flex-row items-center justify-center gap-8"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.9 }}
         >
           <div className="relative">
-            <RainbowButton onClick={() => window.open('https://x.com/', '_blank')}>
-              <Twitter className="w-5 h-5 mr-2" />
+            <StarBorder 
+              onClick={() => window.open('https://x.com/', '_blank')}
+              className="text-base px-6 py-3 font-medium"
+              color="#4c71f2"
+              speed="5s"
+            >
+              <Twitter className="inline-block w-5 h-5 mr-2" />
               Twitter
-            </RainbowButton>
-            <ButtonGrainEffect />
+            </StarBorder>
           </div>
           <div className="relative">
-            <RainbowButton onClick={() => window.open('https://pump.fun', '_blank')}>
-              <ExternalLink className="w-5 h-5 mr-2" />
+            <StarBorder 
+              onClick={() => window.open('https://pump.fun', '_blank')}
+              className="text-base px-6 py-3 font-medium"
+              color="#4c71f2"
+              speed="5s"
+            >
+              <ExternalLink className="inline-block w-5 h-5 mr-2" />
               pump.fun
-            </RainbowButton>
-            <ButtonGrainEffect />
+            </StarBorder>
           </div>
         </motion.div>
       </div>
@@ -132,15 +143,13 @@ export default function Hero() {
         transition={{ duration: 0.8, delay: 1.1 }}
       >
         <div className="relative pointer-events-auto">
-          <StarBorder 
+          <GradientButton 
             onClick={() => setIsExploreOpen(true)}
-            className="text-xl px-6 py-5 font-mono"
-            color="#60a5fa" // Updated to match new color scheme
-            speed="5s"
+            className="font-mono"
           >
             <Cpu className="inline-block w-7 h-7 mr-3" />
             Explore Protocol
-          </StarBorder>
+          </GradientButton>
         </div>
       </motion.div>
 

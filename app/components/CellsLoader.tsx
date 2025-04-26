@@ -1,9 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import * as THREE from 'three'
-import FOG from 'vanta/dist/vanta.fog.min'
 import GrainEffect from './GrainEffect'
 
 interface CellsLoaderProps {
@@ -13,34 +11,6 @@ interface CellsLoaderProps {
 export default function CellsLoader({ onLoadingComplete }: CellsLoaderProps) {
   const [progress, setProgress] = useState(0)
   const [isComplete, setIsComplete] = useState(false)
-  const [vantaEffect, setVantaEffect] = useState<any>(null)
-  const vantaRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!vantaEffect && vantaRef.current) {
-      setVantaEffect(
-        FOG({
-          el: vantaRef.current,
-          THREE: THREE,
-          mouseControls: true,
-          touchControls: true,
-          gyroControls: false,
-          minHeight: 100.00,
-          minWidth: 100.00,
-          highlightColor: 0x4c71f2, // bright blue
-          midtoneColor: 0x3b82f6, // medium blue
-          lowlightColor: 0x1d4ed8, // darker blue
-          baseColor: 0x000000,
-          blurFactor: 0.60,
-          speed: 1.50,
-          zoom: 0.75
-        })
-      )
-    }
-    return () => {
-      if (vantaEffect) vantaEffect.destroy()
-    }
-  }, [vantaEffect])
 
   useEffect(() => {
     const duration = 5 // 5 seconds
@@ -72,7 +42,7 @@ export default function CellsLoader({ onLoadingComplete }: CellsLoaderProps) {
             exit={{ opacity: 0 }}
             transition={{ duration: 1, ease: "easeInOut" }}
           >
-            <div ref={vantaRef} className="absolute inset-0 z-0">
+            <div className="absolute inset-0 z-0">
               <GrainEffect />
             </div>
             
@@ -85,17 +55,17 @@ export default function CellsLoader({ onLoadingComplete }: CellsLoaderProps) {
                 transition={{ duration: 0.5 }}
               >
                 <motion.div
-                  className="h-full bg-blue-500 relative"
+                  className="h-full bg-white relative"
                   initial={{ width: 0 }}
                   animate={{ width: `${progress}%` }}
                   transition={{ duration: 0.1 }}
                   style={{
-                    boxShadow: '0 0 20px rgba(76, 113, 242, 0.6)',
+                    boxShadow: '0 0 20px rgba(255, 255, 255, 0.6)',
                   }}
                 >
                   {/* Animated overlay for subtle shine */}
                   <div 
-                    className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-300/30 to-transparent"
+                    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
                     style={{
                       animation: 'shimmer 2s linear infinite',
                       backgroundSize: '200% 100%',
@@ -106,11 +76,11 @@ export default function CellsLoader({ onLoadingComplete }: CellsLoaderProps) {
               
               {/* Progress text */}
               <motion.div
-                className="mt-6 text-center text-2xl font-bold text-blue-400"
+                className="mt-6 text-center text-2xl font-bold text-white"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 style={{
-                  textShadow: '0 0 10px rgba(76, 113, 242, 0.7), 0 0 20px rgba(76, 113, 242, 0.5)',
+                  textShadow: '0 0 10px rgba(255, 255, 255, 0.7), 0 0 20px rgba(255, 255, 255, 0.5)',
                 }}
               >
                 {Math.round(progress)}%

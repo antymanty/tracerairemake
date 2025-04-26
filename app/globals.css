@@ -101,3 +101,36 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+.gradient-button {
+  background: linear-gradient(92.88deg, rgb(69, 94, 181) 9.16%, rgb(86, 67, 204) 43.89%, rgb(103, 63, 215) 64.72%);
+  position: relative;
+  transition: all 0.3s ease-in-out;
+}
+
+.gradient-button::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 13px;
+  padding: 2px;
+  background: linear-gradient(92.88deg, rgb(89, 114, 201) 9.16%, rgb(106, 87, 224) 43.89%, rgb(123, 83, 235) 64.72%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.3s ease-in-out;
+}
+
+.gradient-button:hover::before {
+  opacity: 1;
+}
+
+.gradient-button-variant {
+  background: linear-gradient(92.88deg, rgb(103, 63, 215) 9.16%, rgb(86, 67, 204) 43.89%, rgb(69, 94, 181) 64.72%);
+}
+
+.gradient-button-variant::before {
+  background: linear-gradient(92.88deg, rgb(123, 83, 235) 9.16%, rgb(106, 87, 224) 43.89%, rgb(89, 114, 201) 64.72%);
+}
