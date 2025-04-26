@@ -49,7 +49,7 @@ const GrainEffect = memo(function GrainEffect() {
     
     try {
       sessionStorage.setItem('noise-texture', noiseDataUrl);
-    } catch (e) {
+    } catch (_) {
       console.warn('Failed to cache noise texture');
     }
   }, []);

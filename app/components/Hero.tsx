@@ -19,7 +19,6 @@ export default function Hero() {
   const [isExploreOpen, setIsExploreOpen] = useState(false)
   const [vantaEffect, setVantaEffect] = useState<VantaEffect | null>(null)
   const vantaRef = useRef<HTMLDivElement>(null)
-  const [isReady, setIsReady] = useState(false)
   
   // Remove colorShift state and animation interval
   const staticColors = useMemo(() => ({
@@ -37,7 +36,8 @@ export default function Hero() {
       try {
         // Force THREE to be available globally (Vanta might rely on this)
         if (typeof window !== 'undefined') {
-          (window as any).THREE = THREE;
+          // Using a properly typed window augmentation
+          (window as Window & { THREE?: typeof THREE }).THREE = THREE;
         }
         
         // Use fixed colors and reduced animation settings
@@ -59,9 +59,6 @@ export default function Hero() {
         
         // Store the effect instance
         setVantaEffect(effect);
-        
-        // Mark as ready
-        setIsReady(true);
       } catch (error) {
         console.error('Failed to initialize Vanta effect:', error);
         // Retry after a delay
@@ -83,19 +80,7 @@ export default function Hero() {
         }
       }
     };
-  }, []); // Only run on mount
-
-  // Helper function to convert HSL to Hex - kept for reference but not actively used
-  const hslToHex = (h: number, s: number, l: number): string => {
-    l /= 100
-    const a = s * Math.min(l, 1 - l) / 100
-    const f = (n: number) => {
-      const k = (n + h / 30) % 12
-      const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1)
-      return Math.round(255 * color).toString(16).padStart(2, '0')
-    }
-    return `#${f(0)}${f(8)}${f(4)}`
-  }
+  }, [staticColors.color1, staticColors.color2, vantaEffect]); // Added missing dependencies
 
   return (
     <section className="relative min-h-screen bg-black overflow-hidden">
