@@ -36,7 +36,9 @@ export default function SpinnerLoader({ onLoadingComplete }: SpinnerLoaderProps)
   }, [onLoadingComplete])
 
   useEffect(() => {
-    if (!mountRef.current) return
+    if (!mountRef.current) return;
+    
+    const mount = mountRef.current; // Store ref value in variable
     
     // Set up scene
     const scene = new THREE.Scene()
@@ -49,7 +51,7 @@ export default function SpinnerLoader({ onLoadingComplete }: SpinnerLoaderProps)
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
     renderer.setClearColor(0x000000, 0)
     renderer.setSize(window.innerWidth, window.innerHeight)
-    mountRef.current.appendChild(renderer.domElement)
+    mount.appendChild(renderer.domElement)
     
     // Create orbital rings
     const rings: THREE.Mesh[] = []
@@ -102,8 +104,8 @@ export default function SpinnerLoader({ onLoadingComplete }: SpinnerLoaderProps)
     // Cleanup function
     return () => {
       window.removeEventListener('resize', handleResize)
-      if (mountRef.current) {
-        mountRef.current.removeChild(renderer.domElement)
+      if (mount) {
+        mount.removeChild(renderer.domElement)
       }
       
       rings.forEach(ring => {

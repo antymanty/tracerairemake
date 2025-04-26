@@ -39,6 +39,8 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
   useEffect(() => {
     if (!containerRef.current) return
 
+    const container = containerRef.current
+    
     let camera: THREE.PerspectiveCamera
     let scene: THREE.Scene
     let targetZ = 1000
@@ -485,9 +487,9 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
       nodesRef.current = []
       linesRef.current = []
       textSpritesRef.current = []
-      if (containerRef.current) {
-        while (containerRef.current.firstChild) {
-          containerRef.current.removeChild(containerRef.current.firstChild)
+      if (container) {
+        while (container.firstChild) {
+          container.removeChild(container.firstChild)
         }
       }
     }

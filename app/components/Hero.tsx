@@ -1,6 +1,5 @@
 'use client'
 
-import ButtonGrainEffect from './ButtonGrainEffect'
 import { motion } from 'framer-motion'
 import { Twitter, ExternalLink, Cpu } from 'lucide-react'
 import GrainEffect from './GrainEffect'
@@ -10,16 +9,22 @@ import * as THREE from 'three'
 import CELLS from 'vanta/dist/vanta.cells.min'
 import { StarBorder } from '@/components/ui/star-border'
 import { GradientButton } from '@/components/ui/gradient-button'
+import Image from 'next/image'
+
+interface VantaEffect {
+  destroy: () => void
+  setOptions: (options: Record<string, unknown>) => void
+}
 
 export default function Hero() {
   const [isExploreOpen, setIsExploreOpen] = useState(false)
-  const [vantaEffect, setVantaEffect] = useState<any>(null)
+  const [vantaEffect, setVantaEffect] = useState<VantaEffect | null>(null)
   const vantaRef = useRef<HTMLDivElement>(null)
   const [colorShift, setColorShift] = useState(0)
 
   useEffect(() => {
     if (!vantaEffect && vantaRef.current) {
-      // Blue color scheme instead of magenta/purple
+      // Initialize with iridescent colors
       setVantaEffect(
         CELLS({
           el: vantaRef.current,
@@ -31,10 +36,10 @@ export default function Hero() {
           minWidth: 200.00,
           scale: 1.00,
           scaleMobile: 1.00,
-          color1: 0x3b82f6, // blue
-          color2: 0x00ffff, // cyan
+          color1: 0x3b82f6, // Initial blue
+          color2: 0x00ffff, // Initial cyan
           size: 1.10,
-          speed: 2.50 // faster animation speed
+          speed: 2.50
         })
       )
     }
@@ -46,9 +51,9 @@ export default function Hero() {
         setColorShift(newShift)
         
         // Use multiple sine waves for more complex iridescent effect
-        // Adjusted to blue spectrum (200-280 degrees in HSL)
-        const hue1 = 200 + (Math.sin(newShift * Math.PI * 2) * 0.5 + 0.5) * 80
-        const hue2 = 180 + (Math.sin((newShift + 0.25) * Math.PI * 2) * 0.5 + 0.5) * 60
+        // Create a shifting color palette that moves through the spectrum
+        const hue1 = 200 + (Math.sin(newShift * Math.PI * 2) * 0.5 + 0.5) * 160 // Full spectrum shift
+        const hue2 = 180 + (Math.cos((newShift + 0.25) * Math.PI * 2) * 0.5 + 0.5) * 160
         
         // Convert HSL to RGB hex with higher saturation (100%) and brightness (70%)
         const color1 = hslToHex(hue1, 100, 70)
@@ -82,9 +87,41 @@ export default function Hero() {
   return (
     <section className="relative min-h-screen bg-black overflow-hidden">
       <div ref={vantaRef} className="absolute inset-0 z-0" />
+      <div className="absolute inset-0 bg-gradient-to-b from-black via-black/50 to-transparent z-0" />
       <div className="absolute inset-0 pointer-events-none">
         <GrainEffect />
       </div>
+
+      {/* Social Links in top right */}
+      <motion.div 
+        className="absolute top-6 right-6 flex items-center gap-6 z-20"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, delay: 0.5 }}
+      >
+        <a 
+          href="https://x.com/" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="text-white/70 hover:text-white transition-colors"
+        >
+          <Twitter className="w-6 h-6" />
+        </a>
+        <a 
+          href="https://pump.fun" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="relative w-6 h-6 opacity-70 hover:opacity-100 transition-opacity"
+        >
+          <Image
+            src="/pump.png"
+            alt="Pump.fun"
+            fill
+            className="object-contain"
+          />
+        </a>
+      </motion.div>
+
       <div className="container mx-auto px-6 pt-32 text-center relative z-10">
         <motion.h1 
           className="text-8xl font-bold tracking-tight mb-6 text-white bg-clip-text text-transparent bg-gradient-to-r from-white via-white/90 to-white/80"
@@ -105,53 +142,24 @@ export default function Hero() {
             Our quantum-powered neural networks decode the language of cells, unlocking breakthrough therapies and advancing the frontiers of regenerative medicine.
           </span>
         </motion.p>
+
         <motion.div
-          className="flex flex-col md:flex-row items-center justify-center gap-8"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.9 }}
+          className="fixed inset-0 flex items-center justify-center pointer-events-none z-10"
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.8, delay: 1.1 }}
         >
-          <div className="relative">
-            <StarBorder 
-              onClick={() => window.open('https://x.com/', '_blank')}
-              className="text-base px-6 py-3 font-medium"
-              color="#4c71f2"
-              speed="5s"
+          <div className="relative pointer-events-auto">
+            <GradientButton 
+              onClick={() => setIsExploreOpen(true)}
+              className="font-mono"
             >
-              <Twitter className="inline-block w-5 h-5 mr-2" />
-              Twitter
-            </StarBorder>
-          </div>
-          <div className="relative">
-            <StarBorder 
-              onClick={() => window.open('https://pump.fun', '_blank')}
-              className="text-base px-6 py-3 font-medium"
-              color="#4c71f2"
-              speed="5s"
-            >
-              <ExternalLink className="inline-block w-5 h-5 mr-2" />
-              pump.fun
-            </StarBorder>
+              <Cpu className="inline-block w-7 h-7 mr-3" />
+              Explore Protocol
+            </GradientButton>
           </div>
         </motion.div>
       </div>
-
-      <motion.div
-        className="fixed inset-0 flex items-center justify-center pointer-events-none z-10"
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.8, delay: 1.1 }}
-      >
-        <div className="relative pointer-events-auto">
-          <GradientButton 
-            onClick={() => setIsExploreOpen(true)}
-            className="font-mono"
-          >
-            <Cpu className="inline-block w-7 h-7 mr-3" />
-            Explore Protocol
-          </GradientButton>
-        </div>
-      </motion.div>
 
       <ExploreModal 
         isOpen={isExploreOpen}

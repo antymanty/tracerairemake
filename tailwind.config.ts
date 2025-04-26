@@ -6,8 +6,16 @@ const config: Config = {
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/**/*.{ts,tsx}",
   ],
   theme: {
+  	container: {
+  		center: true,
+  		padding: "2rem",
+  		screens: {
+  			"2xl": "1400px",
+  		},
+  	},
   	extend: {
   		colors: {
   			background: 'hsl(var(--background))',
@@ -63,8 +71,8 @@ const config: Config = {
   		},
   		animation: {
   			rainbow: 'rainbow var(--speed, 2s) infinite linear',
-			'star-movement-top': 'star-movement-top 6s linear infinite',
-			'star-movement-bottom': 'star-movement-bottom 6s linear infinite'
+  			'star-movement-top': 'star-movement-top linear infinite alternate',
+  			'star-movement-bottom': 'star-movement-bottom linear infinite alternate'
   		},
   		keyframes: {
   			rainbow: {
@@ -75,14 +83,14 @@ const config: Config = {
   					'background-position': '200%'
   				}
   			},
-			'star-movement-top': {
-				'0%': { transform: 'translateX(0%)' },
-				'100%': { transform: 'translateX(100%)' }
-			},
-			'star-movement-bottom': {
-				'0%': { transform: 'translateX(0%)' },
-				'100%': { transform: 'translateX(-100%)' }
-			}
+  			'star-movement-top': {
+  				'0%': { transform: 'translate(0%, 0%)', opacity: '1' },
+  				'100%': { transform: 'translate(100%, 0%)', opacity: '0' },
+  			},
+  			'star-movement-bottom': {
+  				'0%': { transform: 'translate(0%, 0%)', opacity: '1' },
+  				'100%': { transform: 'translate(-100%, 0%)', opacity: '0' },
+  			}
   		}
   	}
   },

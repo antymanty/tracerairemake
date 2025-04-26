@@ -13,6 +13,8 @@ export default function ThreeJsLoadingScene({ children }: ThreeJsLoadingScenePro
   useEffect(() => {
     if (!mountRef.current) return
     
+    const mount = mountRef.current
+    
     // Scene setup
     const scene = new THREE.Scene()
     scene.background = new THREE.Color(0x000000)
@@ -24,7 +26,7 @@ export default function ThreeJsLoadingScene({ children }: ThreeJsLoadingScenePro
     // Renderer setup
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
     renderer.setSize(window.innerWidth, window.innerHeight)
-    mountRef.current.appendChild(renderer.domElement)
+    mount.appendChild(renderer.domElement)
     
     // Create a cube
     const geometry = new THREE.BoxGeometry(2, 2, 2)
@@ -96,8 +98,8 @@ export default function ThreeJsLoadingScene({ children }: ThreeJsLoadingScenePro
     // Cleanup
     return () => {
       window.removeEventListener('resize', handleResize)
-      if (mountRef.current) {
-        mountRef.current.removeChild(renderer.domElement)
+      if (mount) {
+        mount.removeChild(renderer.domElement)
       }
       scene.remove(cube)
       scene.remove(particlesMesh)

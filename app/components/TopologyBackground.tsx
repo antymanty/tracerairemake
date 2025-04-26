@@ -8,6 +8,11 @@ interface TopologyBackgroundProps {
   children?: React.ReactNode
 }
 
+interface VantaEffect {
+  destroy: () => void
+  setOptions: (options: Record<string, unknown>) => void
+}
+
 declare global {
   interface Window {
     THREE: typeof THREE;
@@ -16,7 +21,7 @@ declare global {
 
 export default function TopologyBackground({ children }: TopologyBackgroundProps) {
   const vantaRef = useRef<HTMLDivElement>(null)
-  const [vantaEffect, setVantaEffect] = useState<any>(null)
+  const [vantaEffect, setVantaEffect] = useState<VantaEffect | null>(null)
 
   useEffect(() => {
     if (!vantaEffect && vantaRef.current) {
