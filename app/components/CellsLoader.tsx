@@ -11,9 +11,43 @@ interface CellsLoaderProps {
 export default function CellsLoader({ onLoadingComplete }: CellsLoaderProps) {
   const [progress, setProgress] = useState(0)
   const [isComplete, setIsComplete] = useState(false)
+  const [resourcesLoaded, setResourcesLoaded] = useState(false)
 
+  // Check if THREE.js and Vanta resources are available
   useEffect(() => {
-    const duration = 5 // 5 seconds
+    // Helper to check if script is loaded
+    const isScriptLoaded = (src: string) => {
+      return document.querySelector(`script[src*="${src}"]`) !== null;
+    };
+
+    // Function to pre-load required scripts
+    const preloadResources = async () => {
+      try {
+        // Try to load THREE.js first if needed
+        if (!isScriptLoaded('three')) {
+          console.log('Preloading THREE.js');
+          // This doesn't actually load the script, just checks if it would load
+          await fetch('https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js', { method: 'HEAD' });
+        }
+        
+        // Signal that resources are available
+        setResourcesLoaded(true);
+      } catch (error) {
+        console.error('Error preloading resources:', error);
+        // Continue anyway after a delay
+        setTimeout(() => setResourcesLoaded(true), 1000);
+      }
+    };
+
+    preloadResources();
+  }, []);
+  
+  // Handle the progress bar animation
+  useEffect(() => {
+    // Don't start loading progress until resources check is done
+    if (!resourcesLoaded) return;
+    
+    const duration = 3 // 3 seconds for loading animation
     const interval = 50 // Update every 50ms
     const steps = duration * 1000 / interval
     const increment = 100 / steps
@@ -25,13 +59,16 @@ export default function CellsLoader({ onLoadingComplete }: CellsLoaderProps) {
         clearInterval(timer)
         currentProgress = 100
         setIsComplete(true)
-        onLoadingComplete() // Remove delay for immediate transition
+        // Add a longer delay for transition
+        setTimeout(() => {
+          onLoadingComplete()
+        }, 800)
       }
       setProgress(currentProgress)
     }, interval)
 
     return () => clearInterval(timer)
-  }, [onLoadingComplete])
+  }, [onLoadingComplete, resourcesLoaded])
 
   return (
     <div className="bg-black">

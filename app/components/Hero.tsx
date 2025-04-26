@@ -20,12 +20,29 @@ export default function Hero() {
   const [vantaEffect, setVantaEffect] = useState<VantaEffect | null>(null)
   const vantaRef = useRef<HTMLDivElement>(null)
   const [colorShift, setColorShift] = useState(0)
+  const [isReady, setIsReady] = useState(false)
+  
+  // Store previous colors to enable smoother transitions
+  const prevColorsRef = useRef({
+    color1: 0x3b82f6,
+    color2: 0x00ffff
+  });
 
+  // Initialize Vanta effect with delay after component mount
   useEffect(() => {
-    if (!vantaEffect && vantaRef.current) {
-      // Initialize with iridescent colors
-      setVantaEffect(
-        CELLS({
+    let mountedRef = true;
+    
+    const initVanta = () => {
+      if (!mountedRef || vantaEffect || !vantaRef.current) return;
+      
+      try {
+        // Force THREE to be available globally (Vanta might rely on this)
+        if (typeof window !== 'undefined') {
+          (window as any).THREE = THREE;
+        }
+        
+        // Use fixed initial colors - no dynamic color generation at startup
+        const effect = CELLS({
           el: vantaRef.current,
           THREE: THREE,
           mouseControls: true,
@@ -35,41 +52,89 @@ export default function Hero() {
           minWidth: 200.00,
           scale: 1.00,
           scaleMobile: 1.00,
-          color1: 0x3b82f6, // Initial blue
-          color2: 0x00ffff, // Initial cyan
+          color1: 0x3b82f6, // Original vibrant blue
+          color2: 0x00ffff, // Original vibrant cyan
           size: 1.10,
-          speed: 2.50
-        })
-      )
-    }
-    
-    // Create ultra vibrant color shifting iridescent effect
-    const interval = setInterval(() => {
-      if (vantaEffect) {
-        const newShift = (colorShift + 0.015) % 1 // faster color transition
-        setColorShift(newShift)
+          speed: 2.00  // Slightly reduce speed to avoid flickering
+        });
         
-        // Use multiple sine waves for more complex iridescent effect
-        // Create a shifting color palette that moves through the spectrum
-        const hue1 = 200 + (Math.sin(newShift * Math.PI * 2) * 0.5 + 0.5) * 160 // Full spectrum shift
-        const hue2 = 180 + (Math.cos((newShift + 0.25) * Math.PI * 2) * 0.5 + 0.5) * 160
+        // Store the effect instance
+        setVantaEffect(effect);
         
-        // Convert HSL to RGB hex with higher saturation (100%) and brightness (70%)
-        const color1 = hslToHex(hue1, 100, 70)
-        const color2 = hslToHex(hue2, 100, 60)
-        
-        vantaEffect.setOptions({
-          color1: parseInt(color1.substring(1), 16),
-          color2: parseInt(color2.substring(1), 16)
-        })
+        // Wait a bit before starting any animations
+        setTimeout(() => {
+          setIsReady(true);
+        }, 1000);
+      } catch (error) {
+        console.error('Failed to initialize Vanta effect:', error);
+        // Retry after a delay
+        setTimeout(initVanta, 1000);
       }
-    }, 50) // Faster update (50ms instead of 100ms)
+    };
 
+    // Delay initialization to ensure DOM is ready
+    const timer = setTimeout(initVanta, 500);
+    
     return () => {
-      if (vantaEffect) vantaEffect.destroy()
-      clearInterval(interval)
-    }
-  }, [vantaEffect, colorShift])
+      mountedRef = false;
+      clearTimeout(timer);
+      if (vantaEffect) {
+        try {
+          vantaEffect.destroy();
+        } catch (error) {
+          console.error('Error destroying Vanta effect:', error);
+        }
+      }
+    };
+  }, []); // Only run on mount
+
+  // Handle color shifting separately - with reduced frequency to prevent flashing
+  useEffect(() => {
+    if (!vantaEffect || !isReady) return;
+    
+    // Use a much longer interval to reduce flickering (200ms instead of 50ms)
+    const interval = setInterval(() => {
+      try {
+        // Slow down the color shift speed significantly
+        const newShift = (colorShift + 0.005) % 1; 
+        setColorShift(newShift);
+        
+        // Use extremely subtle color shifts (only 15 degrees of hue shift)
+        const hue1 = 210 + (Math.sin(newShift * Math.PI * 2) * 0.5 + 0.5) * 15; 
+        const hue2 = 180 + (Math.cos((newShift + 0.25) * Math.PI * 2) * 0.5 + 0.5) * 15;
+        
+        // Convert HSL to RGB hex
+        const color1 = hslToHex(hue1, 100, 70);
+        const color2 = hslToHex(hue2, 100, 60);
+        
+        // Interpolate between current and new colors to reduce flashing
+        const newColor1Value = parseInt(color1.substring(1), 16);
+        const newColor2Value = parseInt(color2.substring(1), 16);
+        
+        // Only update if there's a sufficient difference to avoid unnecessary renders
+        if (Math.abs(newColor1Value - prevColorsRef.current.color1) > 100 || 
+            Math.abs(newColor2Value - prevColorsRef.current.color2) > 100) {
+          
+          // Store new values for next comparison
+          prevColorsRef.current = {
+            color1: newColor1Value,
+            color2: newColor2Value
+          };
+          
+          // Update the effect with new colors
+          vantaEffect.setOptions({
+            color1: newColor1Value,
+            color2: newColor2Value
+          });
+        }
+      } catch (error) {
+        console.error('Error updating Vanta colors:', error);
+        clearInterval(interval);
+      }
+    }, 200); // Much slower updates to prevent flashing (200ms)
+
+    return () => clearInterval(interval);
+  }, [vantaEffect, colorShift, isReady]);
 
   // Helper function to convert HSL to Hex
   const hslToHex = (h: number, s: number, l: number): string => {
@@ -85,9 +150,17 @@ export default function Hero() {
 
   return (
     <section className="relative min-h-screen bg-black overflow-hidden">
-      <div ref={vantaRef} className="absolute inset-0 z-0" />
-      <div className="absolute inset-0 bg-gradient-to-b from-black via-black/50 to-transparent z-0" />
-      <div className="absolute inset-0 pointer-events-none">
+      {/* Fallback background in case Vanta fails */}
+      <div className="absolute inset-0 bg-gradient-to-b from-blue-900/30 to-black z-0" />
+      
+      {/* Vanta container */}
+      <div ref={vantaRef} className="absolute inset-0 z-[1]" />
+      
+      {/* Overlay gradient */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black via-black/50 to-transparent z-[2]" />
+      
+      {/* Grain effect */}
+      <div className="absolute inset-0 pointer-events-none z-[5]">
         <GrainEffect />
       </div>
 
