@@ -87,7 +87,7 @@ export default function Hero() {
     <section className="relative min-h-screen bg-black overflow-hidden">
       <div ref={vantaRef} className="absolute inset-0 z-0" />
       <div className="absolute inset-0 bg-gradient-to-b from-black via-black/50 to-transparent z-0" />
-      <div className="absolute inset-0 pointer-events-none">
+      <div className="absolute inset-0 pointer-events-none mix-blend-overlay opacity-20">
         <GrainEffect />
       </div>
 
