@@ -9,6 +9,7 @@ import ExploreModal from './ExploreModal'
 import { useState, useRef, useEffect } from 'react'
 import * as THREE from 'three'
 import CELLS from 'vanta/dist/vanta.cells.min'
+import { StarBorder } from '@/components/ui/star-border'
 
 export default function Hero() {
   const [isExploreOpen, setIsExploreOpen] = useState(false)
@@ -18,7 +19,7 @@ export default function Hero() {
 
   useEffect(() => {
     if (!vantaEffect && vantaRef.current) {
-      // Ultra vibrant iridescent starting colors
+      // Lighter, cell-themed blue colors
       setVantaEffect(
         CELLS({
           el: vantaRef.current,
@@ -30,27 +31,28 @@ export default function Hero() {
           minWidth: 200.00,
           scale: 1.00,
           scaleMobile: 1.00,
-          color1: 0xff00ff, // magenta
-          color2: 0x00ffff, // cyan
+          color1: 0x60a5fa, // lighter blue
+          color2: 0x34d399, // teal/mint green for cellular feel
           size: 1.10,
           speed: 2.50 // faster animation speed
         })
       )
     }
     
-    // Create ultra vibrant color shifting iridescent effect
+    // Create color shifting effect within a cell-appropriate palette
     const interval = setInterval(() => {
       if (vantaEffect) {
         const newShift = (colorShift + 0.015) % 1 // faster color transition
         setColorShift(newShift)
         
-        // Use multiple sine waves for more complex iridescent effect
-        const hue1 = (Math.sin(newShift * Math.PI * 2) * 0.5 + 0.5) * 360
-        const hue2 = (Math.sin((newShift + 0.25) * Math.PI * 2) * 0.5 + 0.5) * 360 // adjusted phase offset
+        // Use multiple sine waves for more complex effect
+        // Adjusted to lighter blue/teal/aqua spectrum for cellular look
+        const hue1 = 180 + (Math.sin(newShift * Math.PI * 2) * 0.5 + 0.5) * 40 // 180-220 (aqua to light blue)
+        const hue2 = 150 + (Math.sin((newShift + 0.25) * Math.PI * 2) * 0.5 + 0.5) * 30 // 150-180 (teal to aqua)
         
-        // Convert HSL to RGB hex with higher saturation (100%) and brightness (70%)
-        const color1 = hslToHex(hue1, 100, 70)
-        const color2 = hslToHex(hue2, 100, 60)
+        // Higher brightness for a lighter look
+        const color1 = hslToHex(hue1, 90, 75)
+        const color2 = hslToHex(hue2, 90, 70)
         
         vantaEffect.setOptions({
           color1: parseInt(color1.substring(1), 16),
@@ -130,14 +132,15 @@ export default function Hero() {
         transition={{ duration: 0.8, delay: 1.1 }}
       >
         <div className="relative pointer-events-auto">
-          <RainbowButton 
+          <StarBorder 
             onClick={() => setIsExploreOpen(true)}
-            className="text-xl px-12 py-6 font-mono"
+            className="text-xl px-6 py-5 font-mono"
+            color="#60a5fa" // Updated to match new color scheme
+            speed="5s"
           >
-            <Cpu className="w-8 h-8 mr-4" />
+            <Cpu className="inline-block w-7 h-7 mr-3" />
             Explore Protocol
-          </RainbowButton>
-          <ButtonGrainEffect />
+          </StarBorder>
         </div>
       </motion.div>
 

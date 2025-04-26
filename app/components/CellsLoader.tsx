@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import * as THREE from 'three'
-import GLOBE from 'vanta/dist/vanta.globe.min'
+import FOG from 'vanta/dist/vanta.fog.min'
 import GrainEffect from './GrainEffect'
 
 interface CellsLoaderProps {
@@ -19,7 +19,7 @@ export default function CellsLoader({ onLoadingComplete }: CellsLoaderProps) {
   useEffect(() => {
     if (!vantaEffect && vantaRef.current) {
       setVantaEffect(
-        GLOBE({
+        FOG({
           el: vantaRef.current,
           THREE: THREE,
           mouseControls: true,
@@ -27,15 +27,13 @@ export default function CellsLoader({ onLoadingComplete }: CellsLoaderProps) {
           gyroControls: false,
           minHeight: 100.00,
           minWidth: 100.00,
-          scale: 1.00,
-          scaleMobile: 1.00,
-          color: 0x4c71f2,
-          color2: 0x16161d,
-          backgroundColor: 0x000000,
-          size: 0.6,
-          points: 10.00,
-          maxDistance: 22.00,
-          spacing: 18.00
+          highlightColor: 0x4c71f2, // bright blue
+          midtoneColor: 0x3b82f6, // medium blue
+          lowlightColor: 0x1d4ed8, // darker blue
+          baseColor: 0x000000,
+          blurFactor: 0.60,
+          speed: 1.50,
+          zoom: 0.75
         })
       )
     }

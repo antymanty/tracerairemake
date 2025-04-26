@@ -165,4 +165,31 @@ declare module 'vanta/dist/vanta.globe.min' {
 
   function GLOBE(options: VantaGlobeOptions): VantaEffect;
   export default GLOBE;
+}
+
+declare module 'vanta/dist/vanta.rings.min' {
+  interface VantaRingsOptions {
+    el: HTMLElement | null;
+    THREE: typeof import('three');
+    mouseControls?: boolean;
+    touchControls?: boolean;
+    gyroControls?: boolean;
+    minHeight?: number;
+    minWidth?: number;
+    scale?: number;
+    scaleMobile?: number;
+    backgroundColor?: number;
+    color?: number;
+    backgroundAlpha?: number;
+    size?: number;
+  }
+
+  interface VantaEffect {
+    destroy: () => void;
+    setOptions: (options: Partial<VantaRingsOptions>) => void;
+    resize: () => void;
+  }
+
+  function RINGS(options: VantaRingsOptions): VantaEffect;
+  export default RINGS;
 } 
