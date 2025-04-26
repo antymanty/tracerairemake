@@ -143,7 +143,7 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
       scene.add(circuit)
 
       // Create nodes for each cluster
-      CLUSTERS.forEach((cluster, clusterIndex) => {
+      CLUSTERS.forEach((cluster) => {
         const nodeGeometry = new THREE.BufferGeometry()
         const nodePositions = []
         const nodeColors = []
