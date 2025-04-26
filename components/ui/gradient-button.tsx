@@ -7,17 +7,30 @@ import { cn } from "@/lib/utils"
 
 const gradientButtonVariants = cva(
   [
-    "relative overflow-hidden",
+    "relative overflow-hidden group",
     "inline-flex items-center justify-center",
     "rounded-xl min-w-[132px] px-9 py-4",
     "text-base font-medium text-white/90",
     "font-mono",
-    "bg-black/95 backdrop-blur-sm",
-    "border border-white/5",
-    "shadow-[inset_0_0_1px_rgba(255,255,255,0.05)]",
-    "hover:bg-black/90 hover:border-white/10",
-    "transition-all duration-500",
-    "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/10",
+    "bg-black/80 backdrop-blur-xl",
+    "border border-white/10",
+    // Multiple layered shadows for depth
+    "shadow-[0_0_1px_1px_rgba(255,255,255,0.05)]",
+    "after:absolute after:inset-0 after:rounded-xl after:shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]",
+    "before:absolute before:inset-0 before:rounded-xl before:shadow-[0_0_0_1px_rgba(255,255,255,0.1)]",
+    // Glass reflection effect
+    "[background-image:linear-gradient(180deg,rgba(255,255,255,0.01),rgba(255,255,255,0)_40%)]",
+    // Hover effects
+    "hover:bg-black/70",
+    "hover:border-white/20",
+    "hover:shadow-[0_0_1px_1px_rgba(255,255,255,0.1),0_0_5px_rgba(255,255,255,0.05)]",
+    "hover:before:shadow-[0_0_0_1px_rgba(255,255,255,0.2)]",
+    "hover:after:shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)]",
+    // Smooth transitions
+    "[transition:all_0.3s_cubic-bezier(0.4,0,0.2,1)]",
+    "before:transition-shadow after:transition-shadow",
+    // Focus state
+    "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20",
     "disabled:pointer-events-none disabled:opacity-50",
   ],
   {

@@ -120,8 +120,8 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
     window.addEventListener('mouseup', onMouseUp)
 
     const init = () => {
-      while (containerRef.current?.firstChild) {
-        containerRef.current.removeChild(containerRef.current.firstChild)
+      while (container.firstChild) {
+        container.removeChild(container.firstChild)
       }
 
       camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 4000)
@@ -141,40 +141,6 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
       circuit.rotation.x = -Math.PI / 2
       circuit.position.y = -300
       scene.add(circuit)
-
-      // Create more connections between clusters
-      const createInterClusterConnections = () => {
-        for (let i = 0; i < CLUSTERS.length; i++) {
-          for (let j = i + 1; j < CLUSTERS.length; j++) {
-            const cluster1 = CLUSTERS[i]
-            const cluster2 = CLUSTERS[j]
-            const distance = Math.sqrt(
-              Math.pow(cluster1.x - cluster2.x, 2) +
-              Math.pow(cluster1.y - cluster2.y, 2)
-            )
-            
-            if (distance < 800) { // Increased connection distance
-              const lineGeometry = new THREE.BufferGeometry()
-              const linePositions = [
-                cluster1.x, cluster1.y, cluster1.z,
-                cluster2.x, cluster2.y, cluster2.z
-              ]
-              lineGeometry.setAttribute('position', new THREE.Float32BufferAttribute(linePositions, 3))
-
-              const lineMaterial = new THREE.LineBasicMaterial({
-                color: 0xffffff,
-                transparent: true,
-                opacity: 0.1,
-                blending: THREE.AdditiveBlending
-              })
-
-              const line = new THREE.Line(lineGeometry, lineMaterial)
-              scene.add(line)
-              linesRef.current.push(line)
-            }
-          }
-        }
-      }
 
       // Create nodes for each cluster
       CLUSTERS.forEach((cluster, clusterIndex) => {
@@ -246,81 +212,7 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
           }
         }
 
-        // Create connections between clusters
-        if (clusterIndex > 0) {
-          const prevCluster = nodesRef.current[clusterIndex - 1]
-          const prevPositions = prevCluster.geometry.attributes.position.array
-          
-          // Increased frequency of inter-cluster connections
-          for (let i = 0; i < positions.length; i += 15) {  // Reduced step size from 30 to 15
-            for (let j = 0; j < prevPositions.length; j += 15) {
-              const distance = Math.sqrt(
-                Math.pow(positions[i] - prevPositions[j], 2) +
-                Math.pow(positions[i + 1] - prevPositions[j + 1], 2) +
-                Math.pow(positions[i + 2] - prevPositions[j + 2], 2)
-              )
-
-              // Add distance check for inter-cluster connections
-              if (distance < 1000) {  // Large threshold for inter-cluster connections
-                const lineGeometry = new THREE.BufferGeometry()
-                const linePositions = [
-                  positions[i], positions[i + 1], positions[i + 2],
-                  prevPositions[j], prevPositions[j + 1], prevPositions[j + 2]
-                ]
-                lineGeometry.setAttribute('position', new THREE.Float32BufferAttribute(linePositions, 3))
-
-                const lineMaterial = new THREE.LineBasicMaterial({
-                  color: 0xffffff,
-                  transparent: true,
-                  opacity: 0.08,  // Reduced opacity for inter-cluster connections
-                  blending: THREE.AdditiveBlending
-                })
-
-                const line = new THREE.Line(lineGeometry, lineMaterial)
-                scene.add(line)
-                linesRef.current.push(line)
-              }
-            }
-          }
-        }
-
-        // Add connections to all other clusters
-        for (let otherClusterIndex = 0; otherClusterIndex < clusterIndex - 1; otherClusterIndex++) {
-          const otherCluster = nodesRef.current[otherClusterIndex]
-          const otherPositions = otherCluster.geometry.attributes.position.array
-          
-          for (let i = 0; i < positions.length; i += 20) {
-            for (let j = 0; j < otherPositions.length; j += 20) {
-              const distance = Math.sqrt(
-                Math.pow(positions[i] - otherPositions[j], 2) +
-                Math.pow(positions[i + 1] - otherPositions[j + 1], 2) +
-                Math.pow(positions[i + 2] - otherPositions[j + 2], 2)
-              )
-
-              if (distance < 1000) {
-                const lineGeometry = new THREE.BufferGeometry()
-                const linePositions = [
-                  positions[i], positions[i + 1], positions[i + 2],
-                  otherPositions[j], otherPositions[j + 1], otherPositions[j + 2]
-                ]
-                lineGeometry.setAttribute('position', new THREE.Float32BufferAttribute(linePositions, 3))
-
-                const lineMaterial = new THREE.LineBasicMaterial({
-                  color: 0xffffff,
-                  transparent: true,
-                  opacity: 0.08,
-                  blending: THREE.AdditiveBlending
-                })
-
-                const line = new THREE.Line(lineGeometry, lineMaterial)
-                scene.add(line)
-                linesRef.current.push(line)
-              }
-            }
-          }
-        }
-
-        // Add coordinate labels
+        // Create coordinate labels
         const canvas = document.createElement('canvas')
         const ctx = canvas.getContext('2d')
         canvas.width = 128
@@ -369,7 +261,7 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
       canvas.style.width = '100%'
       canvas.style.height = '100%'
       
-      containerRef.current?.appendChild(canvas)
+      container.appendChild(canvas)
 
       window.addEventListener('wheel', onWheel)
       window.addEventListener('resize', onWindowResize)
@@ -475,18 +367,26 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
       window.removeEventListener('mouseup', onMouseUp)
       window.removeEventListener('wheel', onWheel)
       window.removeEventListener('resize', onWindowResize)
-      if (rendererRef.current) {
-        rendererRef.current.dispose()
-        rendererRef.current.domElement.remove()
+      
+      // Store ref values before cleanup
+      const currentRenderer = rendererRef.current
+      const currentScene = sceneRef.current
+      
+      if (currentRenderer) {
+        currentRenderer.dispose()
+        currentRenderer.domElement.remove()
         rendererRef.current = null
       }
+      
       dataParticlesRef.current.forEach(particle => {
-        sceneRef.current?.remove(particle.mesh)
+        currentScene?.remove(particle.mesh)
       })
+      
       dataParticlesRef.current = []
       nodesRef.current = []
       linesRef.current = []
       textSpritesRef.current = []
+      
       if (container) {
         while (container.firstChild) {
           container.removeChild(container.firstChild)

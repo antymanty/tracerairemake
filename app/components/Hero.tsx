@@ -1,13 +1,12 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Twitter, ExternalLink, Cpu } from 'lucide-react'
+import { Twitter, Cpu } from 'lucide-react'
 import GrainEffect from './GrainEffect'
 import ExploreModal from './ExploreModal'
 import { useState, useRef, useEffect } from 'react'
 import * as THREE from 'three'
 import CELLS from 'vanta/dist/vanta.cells.min'
-import { StarBorder } from '@/components/ui/star-border'
 import { GradientButton } from '@/components/ui/gradient-button'
 import Image from 'next/image'
 
