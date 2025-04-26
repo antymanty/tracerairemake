@@ -116,6 +116,7 @@ export default function Hero() {
             src="/pump.png"
             alt="Pump.fun"
             fill
+            sizes="(max-width: 768px) 24px, 24px"
             className="object-contain"
           />
         </a>
