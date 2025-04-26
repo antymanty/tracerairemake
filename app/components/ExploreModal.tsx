@@ -83,7 +83,7 @@ export default memo(function ExploreModal({ isOpen, onClose }: ExploreModalProps
                       { title: 'Quantum Entanglement', status: 'SYNCED', value: '100%', displayValue: '100%', desc: 'Stable quantum state across nodes' },
                       { title: 'AI Ethics Framework', status: 'ENFORCED', value: '100%', displayValue: '100%', desc: 'Operations within ethical boundaries' },
                       { title: 'Autonomous Systems', status: 'LEARNING', value: '95%', displayValue: '95%', desc: 'Self-improvement protocol capacity' }
-                    ].map((item, index) => (
+                    ].map((item) => (
                       <div
                         key={item.title}
                         className="bg-black/20 rounded-lg p-4 border border-white/5 mb-4"
