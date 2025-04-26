@@ -4,17 +4,82 @@ import ButtonGrainEffect from './ButtonGrainEffect'
 import { motion } from 'framer-motion'
 import { Twitter, ExternalLink, Cpu } from 'lucide-react'
 import { RainbowButton } from '@/components/ui/rainbow-button'
-import WavyBackground from './WavyBackground'
-import ExploreModal from './ExploreModal'
-import { useState } from 'react'
 import GrainEffect from './GrainEffect'
+import ExploreModal from './ExploreModal'
+import { useState, useRef, useEffect } from 'react'
+import * as THREE from 'three'
+import CELLS from 'vanta/dist/vanta.cells.min'
 
 export default function Hero() {
   const [isExploreOpen, setIsExploreOpen] = useState(false)
+  const [vantaEffect, setVantaEffect] = useState<any>(null)
+  const vantaRef = useRef<HTMLDivElement>(null)
+  const [colorShift, setColorShift] = useState(0)
+
+  useEffect(() => {
+    if (!vantaEffect && vantaRef.current) {
+      // Ultra vibrant iridescent starting colors
+      setVantaEffect(
+        CELLS({
+          el: vantaRef.current,
+          THREE: THREE,
+          mouseControls: true,
+          touchControls: true,
+          gyroControls: false,
+          minHeight: 200.00,
+          minWidth: 200.00,
+          scale: 1.00,
+          scaleMobile: 1.00,
+          color1: 0xff00ff, // magenta
+          color2: 0x00ffff, // cyan
+          size: 1.10,
+          speed: 2.50 // faster animation speed
+        })
+      )
+    }
+    
+    // Create ultra vibrant color shifting iridescent effect
+    const interval = setInterval(() => {
+      if (vantaEffect) {
+        const newShift = (colorShift + 0.015) % 1 // faster color transition
+        setColorShift(newShift)
+        
+        // Use multiple sine waves for more complex iridescent effect
+        const hue1 = (Math.sin(newShift * Math.PI * 2) * 0.5 + 0.5) * 360
+        const hue2 = (Math.sin((newShift + 0.25) * Math.PI * 2) * 0.5 + 0.5) * 360 // adjusted phase offset
+        
+        // Convert HSL to RGB hex with higher saturation (100%) and brightness (70%)
+        const color1 = hslToHex(hue1, 100, 70)
+        const color2 = hslToHex(hue2, 100, 60)
+        
+        vantaEffect.setOptions({
+          color1: parseInt(color1.substring(1), 16),
+          color2: parseInt(color2.substring(1), 16)
+        })
+      }
+    }, 50) // Faster update (50ms instead of 100ms)
+
+    return () => {
+      if (vantaEffect) vantaEffect.destroy()
+      clearInterval(interval)
+    }
+  }, [vantaEffect, colorShift])
+
+  // Helper function to convert HSL to Hex
+  const hslToHex = (h: number, s: number, l: number): string => {
+    l /= 100
+    const a = s * Math.min(l, 1 - l) / 100
+    const f = (n: number) => {
+      const k = (n + h / 30) % 12
+      const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1)
+      return Math.round(255 * color).toString(16).padStart(2, '0')
+    }
+    return `#${f(0)}${f(8)}${f(4)}`
+  }
 
   return (
     <section className="relative min-h-screen bg-black overflow-hidden">
-      <WavyBackground />
+      <div ref={vantaRef} className="absolute inset-0 z-0" />
       <div className="absolute inset-0 pointer-events-none">
         <GrainEffect />
       </div>

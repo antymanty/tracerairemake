@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import * as THREE from 'three'
-import CELLS from 'vanta/dist/vanta.cells.min'
+import GLOBE from 'vanta/dist/vanta.globe.min'
 import GrainEffect from './GrainEffect'
 
 interface CellsLoaderProps {
@@ -19,7 +19,7 @@ export default function CellsLoader({ onLoadingComplete }: CellsLoaderProps) {
   useEffect(() => {
     if (!vantaEffect && vantaRef.current) {
       setVantaEffect(
-        CELLS({
+        GLOBE({
           el: vantaRef.current,
           THREE: THREE,
           mouseControls: true,
@@ -28,10 +28,14 @@ export default function CellsLoader({ onLoadingComplete }: CellsLoaderProps) {
           minHeight: 100.00,
           minWidth: 100.00,
           scale: 1.00,
-          color1: 0xffffff,
-          color2: 0x3838e8,
-          size: 1.50,
-          speed: 2.00
+          scaleMobile: 1.00,
+          color: 0x4c71f2,
+          color2: 0x16161d,
+          backgroundColor: 0x000000,
+          size: 0.6,
+          points: 10.00,
+          maxDistance: 22.00,
+          spacing: 18.00
         })
       )
     }
@@ -83,17 +87,17 @@ export default function CellsLoader({ onLoadingComplete }: CellsLoaderProps) {
                 transition={{ duration: 0.5 }}
               >
                 <motion.div
-                  className="h-full bg-white relative"
+                  className="h-full bg-blue-500 relative"
                   initial={{ width: 0 }}
                   animate={{ width: `${progress}%` }}
                   transition={{ duration: 0.1 }}
                   style={{
-                    boxShadow: '0 0 20px rgba(255, 255, 255, 0.3)',
+                    boxShadow: '0 0 20px rgba(76, 113, 242, 0.6)',
                   }}
                 >
                   {/* Animated overlay for subtle shine */}
                   <div 
-                    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                    className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-300/30 to-transparent"
                     style={{
                       animation: 'shimmer 2s linear infinite',
                       backgroundSize: '200% 100%',
@@ -104,11 +108,11 @@ export default function CellsLoader({ onLoadingComplete }: CellsLoaderProps) {
               
               {/* Progress text */}
               <motion.div
-                className="mt-6 text-center text-2xl font-bold text-white"
+                className="mt-6 text-center text-2xl font-bold text-blue-400"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 style={{
-                  textShadow: '0 0 10px rgba(255, 255, 255, 0.5), 0 0 20px rgba(255, 255, 255, 0.3)',
+                  textShadow: '0 0 10px rgba(76, 113, 242, 0.7), 0 0 20px rgba(76, 113, 242, 0.5)',
                 }}
               >
                 {Math.round(progress)}%

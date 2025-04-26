@@ -62,7 +62,9 @@ const config: Config = {
   			sm: 'calc(var(--radius) - 4px)'
   		},
   		animation: {
-  			rainbow: 'rainbow var(--speed, 2s) infinite linear'
+  			rainbow: 'rainbow var(--speed, 2s) infinite linear',
+			'star-movement-top': 'star-movement-top 6s linear infinite',
+			'star-movement-bottom': 'star-movement-bottom 6s linear infinite'
   		},
   		keyframes: {
   			rainbow: {
@@ -72,7 +74,15 @@ const config: Config = {
   				'100%': {
   					'background-position': '200%'
   				}
-  			}
+  			},
+			'star-movement-top': {
+				'0%': { transform: 'translateX(0%)' },
+				'100%': { transform: 'translateX(100%)' }
+			},
+			'star-movement-bottom': {
+				'0%': { transform: 'translateX(0%)' },
+				'100%': { transform: 'translateX(-100%)' }
+			}
   		}
   	}
   },
