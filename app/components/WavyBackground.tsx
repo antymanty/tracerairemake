@@ -8,13 +8,13 @@ export default function WavyBackground() {
   const containerRef = useRef<HTMLDivElement>(null)
   const timeRef = useRef(0)
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null)
+  const sceneRef = useRef<THREE.Scene | null>(null)
+  const particlesRef = useRef<THREE.Points | null>(null)
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null)
 
   useEffect(() => {
     if (!containerRef.current) return
 
-    let camera: THREE.PerspectiveCamera
-    let scene: THREE.Scene
-    let particles: THREE.Points
     let mouseX = 0, mouseY = 0
     let windowHalfX = window.innerWidth / 2
     let windowHalfY = window.innerHeight / 2
@@ -25,10 +25,10 @@ export default function WavyBackground() {
         containerRef.current.removeChild(containerRef.current.firstChild)
       }
 
-      camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 1, 2000)
-      camera.position.z = 1000
+      cameraRef.current = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 1, 2000)
+      cameraRef.current.position.z = 1000
 
-      scene = new THREE.Scene()
+      sceneRef.current = new THREE.Scene()
 
       // Create particle system
       const geometry = new THREE.BufferGeometry()
@@ -64,8 +64,8 @@ export default function WavyBackground() {
         blending: THREE.AdditiveBlending
       })
 
-      particles = new THREE.Points(geometry, material)
-      scene.add(particles)
+      particlesRef.current = new THREE.Points(geometry, material)
+      sceneRef.current.add(particlesRef.current)
 
       rendererRef.current = new THREE.WebGLRenderer({ 
         alpha: true,
@@ -96,17 +96,19 @@ export default function WavyBackground() {
     const onWindowResize = () => {
       windowHalfX = window.innerWidth / 2
       windowHalfY = window.innerHeight / 2
-      camera.aspect = window.innerWidth / window.innerHeight
-      camera.updateProjectionMatrix()
+      if (cameraRef.current) {
+        cameraRef.current.aspect = window.innerWidth / window.innerHeight
+        cameraRef.current.updateProjectionMatrix()
+      }
       rendererRef.current?.setSize(window.innerWidth, window.innerHeight)
     }
 
     const animate = () => {
-      if (!particles || !rendererRef.current) return
+      if (!particlesRef.current || !rendererRef.current || !sceneRef.current || !cameraRef.current) return
       
       timeRef.current += 0.01
 
-      const positions = particles.geometry.attributes.position.array
+      const positions = particlesRef.current.geometry.attributes.position.array
       for (let i = 0; i < positions.length; i += 3) {
         const x = positions[i]
         const y = positions[i + 1]
@@ -115,13 +117,13 @@ export default function WavyBackground() {
         positions[i + 2] = Math.sin(x * 0.02 + timeRef.current) * 50 + 
                           Math.cos(y * 0.02 + timeRef.current) * 50
       }
-      particles.geometry.attributes.position.needsUpdate = true
+      particlesRef.current.geometry.attributes.position.needsUpdate = true
 
-      camera.position.x += (mouseX * 0.5 - camera.position.x) * 0.05
-      camera.position.y += (-mouseY * 0.5 - camera.position.y) * 0.05
-      camera.lookAt(scene.position)
+      cameraRef.current.position.x += (mouseX * 0.5 - cameraRef.current.position.x) * 0.05
+      cameraRef.current.position.y += (-mouseY * 0.5 - cameraRef.current.position.y) * 0.05
+      cameraRef.current.lookAt(sceneRef.current.position)
       
-      rendererRef.current.render(scene, camera)
+      rendererRef.current.render(sceneRef.current, cameraRef.current)
     }
 
     init()
@@ -131,11 +133,28 @@ export default function WavyBackground() {
       gsap.ticker.remove(animate)
       window.removeEventListener('mousemove', onMouseMove)
       window.removeEventListener('resize', onWindowResize)
+      
+      if (particlesRef.current) {
+        particlesRef.current.geometry.dispose()
+        if (particlesRef.current.material instanceof THREE.Material) {
+          particlesRef.current.material.dispose()
+        }
+        particlesRef.current = null
+      }
+      
       if (rendererRef.current) {
         rendererRef.current.dispose()
         rendererRef.current.domElement.remove()
         rendererRef.current = null
       }
+      
+      if (sceneRef.current) {
+        sceneRef.current.clear()
+        sceneRef.current = null
+      }
+      
+      cameraRef.current = null
+      
       if (containerRef.current) {
         while (containerRef.current.firstChild) {
           containerRef.current.removeChild(containerRef.current.firstChild)
