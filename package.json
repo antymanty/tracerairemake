@@ -1,6 +1,6 @@
 {
-  "name": "traceai",
-  "version": "0.1.0",
+  "name": "kodai",
+  "version": "0.5.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -17,6 +17,7 @@
     "glsl-force": "github:ykob/glsl-force",
     "glsl-noise": "^0.0.0",
     "gsap": "^3.12.5",
+    "kodai": "file:",
     "lucide-react": "^0.469.0",
     "next": "^15.3.1",
     "react": "^18",

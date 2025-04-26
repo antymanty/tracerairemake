@@ -15,17 +15,14 @@ export default function WavyBackground() {
   useEffect(() => {
     if (!containerRef.current) return
 
-    // Store container reference
-    const container = containerRef.current
-
     let mouseX = 0, mouseY = 0
     let windowHalfX = window.innerWidth / 2
     let windowHalfY = window.innerHeight / 2
 
     const init = () => {
       // Clean up any existing canvas first
-      while (container.firstChild) {
-        container.removeChild(container.firstChild)
+      while (containerRef.current?.firstChild) {
+        containerRef.current.removeChild(containerRef.current.firstChild)
       }
 
       cameraRef.current = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 1, 2000)
@@ -85,7 +82,7 @@ export default function WavyBackground() {
       canvas.style.width = '100%'
       canvas.style.height = '100%'
       
-      container.appendChild(canvas)
+      containerRef.current?.appendChild(canvas)
 
       window.addEventListener('mousemove', onMouseMove)
       window.addEventListener('resize', onWindowResize)
@@ -158,9 +155,9 @@ export default function WavyBackground() {
       
       cameraRef.current = null
       
-      if (container) {
-        while (container.firstChild) {
-          container.removeChild(container.firstChild)
+      if (containerRef.current) {
+        while (containerRef.current.firstChild) {
+          containerRef.current.removeChild(containerRef.current.firstChild)
         }
       }
     }
