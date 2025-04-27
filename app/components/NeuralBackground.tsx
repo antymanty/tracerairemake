@@ -64,92 +64,59 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
   const frameRef = useRef<number>(0)
   const groupRef = useRef<THREE.Group | null>(null)
 
-  // MODIFIED createDataParticle: Creates particles that follow existing line segments
+  // MODIFIED createDataParticle: Makes particles match node design exactly
   const createDataParticle = useCallback((
     lineSegment: [THREE.Vector3, THREE.Vector3], // Start and end points of the exact line segment
     color: string | number,
     lineType: LineInfo['type']
   ) => {
-    // Make particles smaller with blue glow
-    const particleSize = lineType === 'interconnect' ? 1.8 : 1.2; // Smaller sizes
+    // Use the same design as nodes but slightly smaller (80% of node size)
+    const nodeSize = lineType === 'interconnect' ? 
+                     PERIPHERAL_CONFIG.nodeSize * 0.8 : // For interconnects, use peripheral node size
+                     CORE_CONFIG.nodeSize * 0.8;        // For core, use core node size
     
-    // Create a more complex particle with blue glow effect, regardless of the original color
-    const geometry = new THREE.SphereGeometry(particleSize, 8, 8);
+    // Create geometry the same as nodes (simple sphere)
+    const geometry = new THREE.SphereGeometry(nodeSize / 2, 8, 6); // Same parameters as nodes
     
-    // Create a blue-based color for the glow, but keep original color influence
-    const particleColor = new THREE.Color(color);
-    // Get original HSL
-    const hsl = { h: 0, s: 0, l: 0 };
-    particleColor.getHSL(hsl);
+    // Create material exactly like the nodes
+    const nodeColor = new THREE.Color(color);
     
-    // Create core color (keep some of the original hue but shift toward blue)
-    const coreColor = new THREE.Color().setHSL(
-      0.6, // Blue hue (0.6 is blue in HSL)
-      0.9, // High saturation
-      0.7  // Good brightness
-    );
-    
-    // Create a bright blue glow color
-    const glowColor = new THREE.Color().setHSL(
-      0.6, // Blue hue
-      1.0, // Maximum saturation
-      0.8  // Very bright
-    );
-    
-    const coreMaterial = new THREE.MeshBasicMaterial({
-      color: coreColor,
+    // Match the node material properties exactly
+    const material = new THREE.MeshBasicMaterial({
+      color: nodeColor,
       transparent: true,
-      opacity: 1.0,
+      opacity: 0.9,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
     });
 
-    // Create the main particle
-    const mesh = new THREE.Mesh(geometry, coreMaterial);
-
-    // Create a larger, intensely glowing blue aura
-    const glowSize = particleSize * 3.0; // Larger glow
-    const glowGeometry = new THREE.SphereGeometry(glowSize, 16, 16);
+    // Create the particle using the node design
+    const mesh = new THREE.Mesh(geometry, material);
     
-    // Make the glow material intensely blue with maximum emission effect
-    const glowMaterial = new THREE.MeshBasicMaterial({
-      color: glowColor,
-      transparent: true,
-      opacity: 0.6, // More visible glow
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      side: THREE.BackSide // Inside render for a soft glow
-    });
-
-    const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
-    mesh.add(glowMesh); // Attach glow to the main particle
-
     // Get start and end from the line segment
     const startPoint = lineSegment[0];
     const endPoint = lineSegment[1];
 
-    // Start at beginning of the line for visual clarity
+    // Start at beginning of the line
     const initialProgress = 0;
     mesh.position.copy(startPoint);
     
-    // Add to the group instead of scene for proper rotation
+    // Add to the group for proper rotation
     groupRef.current?.add(mesh);
 
-    // Speed logic (no change needed here)
-    let speedFactor = 0.4 + Math.random() * 0.8; // Much more variation (0.4 to 1.2)
-    
-    // Apply type-specific adjustments
-    if (lineType === 'core') speedFactor *= 0.8 + Math.random() * 0.4; // 0.32 to 1.44
-    if (lineType === 'interconnect') speedFactor *= 0.7 + Math.random() * 0.6; // 0.28 to 1.92
+    // Keep speed logic the same
+    let speedFactor = 0.4 + Math.random() * 0.8;
+    if (lineType === 'core') speedFactor *= 0.8 + Math.random() * 0.4;
+    if (lineType === 'interconnect') speedFactor *= 0.7 + Math.random() * 0.6;
 
     return {
       mesh,
       startPoint,
       endPoint,
       progress: initialProgress,
-      speed: (0.01 + Math.random() * 0.02) * speedFactor, // More random base speed
-      direction: 1 as 1 | -1, // Always start forward for more clarity
-      life: 1 + Math.floor(Math.random() * 3), // Shorter lifespan
+      speed: (0.01 + Math.random() * 0.02) * speedFactor,
+      direction: 1 as 1 | -1,
+      life: 1 + Math.floor(Math.random() * 3),
     };
   }, []);
 
