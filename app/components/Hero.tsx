@@ -108,12 +108,9 @@ export default function Hero() {
   return (
     <section 
       ref={vantaRef}
-      className="relative min-h-screen overflow-hidden bg-black"
+      className="relative min-h-screen overflow-hidden flex items-center justify-center"
       onMouseMove={handleMouseMove}
     >
-      {/* Fallback background in case Vanta fails */}
-      <div className="absolute inset-0 bg-gradient-to-b from-blue-900/30 to-black z-0" />
-      
       {/* Vanta container */}
       <div className="absolute inset-0 z-[1]" />
       
@@ -153,32 +150,21 @@ export default function Hero() {
         </a>
       </motion.div>
 
-      <div id="hero-content" className="container mx-auto px-6 pt-32 text-center relative z-10">
+      <div id="hero-content" className="container mx-auto px-6 text-center relative z-10 flex flex-col items-center">
         <motion.h1 
-          className="text-8xl font-bold tracking-tight mb-6 text-white bg-clip-text text-transparent bg-gradient-to-r from-white via-white/90 to-white/80"
+          className="text-9xl font-bold tracking-tight mb-12 text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-cyan-400 to-blue-500 filter drop-shadow-lg"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.5 }}
         >
           Kodai
         </motion.h1>
-        <motion.p 
-          className="max-w-3xl mx-auto text-lg leading-relaxed text-white/80 mb-12 font-light tracking-wide"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.7 }}
-        >
-          Pioneering the convergence of AI and cellular science to revolutionize human health.
-          <span className="block mt-3 text-white/70">
-            Our quantum-powered neural networks decode the language of cells, unlocking breakthrough therapies and advancing the frontiers of regenerative medicine.
-          </span>
-        </motion.p>
 
         <motion.div
-          className="flex items-center justify-center mt-16 z-10"
+          className="flex items-center justify-center z-10"
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.8, delay: 1.1 }}
+          transition={{ duration: 0.8, delay: 0.7 }}
         >
           <Link href="/explore" passHref>
             <GradientButton 

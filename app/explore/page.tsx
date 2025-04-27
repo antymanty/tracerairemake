@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Info, ArrowLeft, Zap, BrainCircuit, ShieldCheck, Atom, Activity, Database, Network, Cpu,
+  Info, ArrowLeft, Zap, BrainCircuit, ShieldCheck, Atom, Database, Network, Cpu,
   ListChecks
 } from 'lucide-react'
 import dynamic from 'next/dynamic'
@@ -214,17 +214,15 @@ export default function ExplorePage() {
 
   const addControlLog = useCallback((messages: string[]) => {
     if (isControlCoolingDown) {
-      // Use cooldown messages if cooldown is active
       const logMsg = cooldownMessages[Math.floor(Math.random() * cooldownMessages.length)];
       setLogEntries(prev => [`${new Date().toLocaleTimeString()} - ${logMsg}`, ...prev.slice(0, 99)]);
-      return false; // Indicate action was blocked
+      return false; 
     }
     const logMsg = messages[Math.floor(Math.random() * messages.length)];
     setLogEntries(prev => [`${new Date().toLocaleTimeString()} - ${logMsg}`, ...prev.slice(0, 99)]);
-    startCooldown(); // Start cooldown after successful action
-    return true; // Indicate action was successful
-  // Add missing dependencies
-  }, [isControlCoolingDown, startCooldown, cooldownMessages, pauseMessages]); 
+    startCooldown(); 
+    return true; 
+  }, [isControlCoolingDown, startCooldown, cooldownMessages]);
 
   const handlePauseToggle = () => {
     if (addControlLog(pauseMessages)) {
