@@ -40,15 +40,6 @@ const protocolData = [
   { icon: Network, title: 'Cross-Nodal Latency', status: 'LOW', value: '99.8%', displayValue: '< 2ms', desc: 'Network Efficiency', color: 'green' }
 ];
 
-const architectureData = [
-  { name: 'Quantum Core', value: '98%', icon: Atom, color: 'blue' },
-  { name: 'Neural Engine', value: '95%', icon: BrainCircuit, color: 'cyan' },
-  { name: 'Ethics Matrix', value: '100%', icon: ShieldCheck, color: 'purple' },
-  { name: 'Predictive Unit', value: '97%', icon: Activity, color: 'emerald' },
-  { name: 'Data Substrate', value: '99%', icon: Database, color: 'pink' },
-  { name: 'Self-Healing Grid', value: '96%', icon: Zap, color: 'yellow' }
-];
-
 // Helper function for status colors
 const getStatusColor = (status: string): string => {
   switch (status.toUpperCase()) {
@@ -207,73 +198,39 @@ export default function ExplorePage() {
     "[SYS] Halting temporal progression.",
     "[CMD] Entering stasis mode.",
   ];
-  const resumeMessages = [
-    "[CMD] Simulation resume requested.",
-    "[SYS] Reactivating core processes.",
-    "[CMD] Exiting stasis mode.",
-  ];
-  const injectMessages = [
-    "[CMD] Injecting synthetic dataset: alpha_7.",
-    "[SYS] Integrating external data stream.",
-    "[CMD] Beginning test data injection protocol.",
-  ];
-  const recalibrateMessages = [
-    "[CMD] Initiating Quantum Core recalibration sequence.",
-    "[SYS] Aligning qubit entanglement matrix.",
-    "[CMD] Beginning core recalibration cycle.",
-  ];
   const cooldownMessages = [
       "[WARN] Control interface cooldown active. Please wait.",
       "[SYS] Command buffer saturated. Standby required.",
       "[WARN] Rate limit exceeded. Command rejected."
   ];
 
-  // --- Event Handlers with Cooldown & Dynamic Logs ---
   const startCooldown = () => {
-      setIsControlCoolingDown(true);
-      // Clear previous timer if it exists
-      if (controlCooldownTimer.current) {
-          clearTimeout(controlCooldownTimer.current);
-      }
-      controlCooldownTimer.current = setTimeout(() => {
-          setIsControlCoolingDown(false);
-          controlCooldownTimer.current = null;
-      }, 3000); // 3 second cooldown
+    setIsControlCoolingDown(true);
+    controlCooldownTimer.current = setTimeout(() => {
+      setIsControlCoolingDown(false);
+      controlCooldownTimer.current = null;
+    }, 2000); // 2-second cooldown
   };
 
-  // --- handleStatusItemClick adjusted to use cooldown ---
-  const handleStatusItemClick = useCallback((item: typeof protocolData[0]) => {
+  const addControlLog = useCallback((messages: string[]) => {
     if (isControlCoolingDown) {
-        const msg = cooldownMessages[Math.floor(Math.random() * cooldownMessages.length)];
-        setLogEntries(prev => [`${new Date().toLocaleTimeString()} - ${msg}`, ...prev.slice(0, 99)]);
-        return;
+      // Use cooldown messages if cooldown is active
+      const logMsg = cooldownMessages[Math.floor(Math.random() * cooldownMessages.length)];
+      setLogEntries(prev => [`${new Date().toLocaleTimeString()} - ${logMsg}`, ...prev.slice(0, 99)]);
+      return false; // Indicate action was blocked
     }
-    if (!isPaused) { 
-        setIsPaused(true); 
-        const pauseMsg = pauseMessages[Math.floor(Math.random() * pauseMessages.length)];
-        setLogEntries(prev => [
-          `${new Date().toLocaleTimeString()} - ${pauseMsg} (Inspect Triggered)`, 
-          ...prev.slice(0, 99)
-        ]);
-    }
-    setLogEntries(prev => [
-      `${new Date().toLocaleTimeString()} - [INSPECT] Querying: ${item.title} | Status: ${item.status} | Val: ${item.displayValue}`, 
-      ...prev.slice(0, 98)
-    ]);
-    if (logContainerRef.current) {
-      logContainerRef.current.scrollTop = 0;
-    }
-    startCooldown(); // Inspection also triggers cooldown
-  }, [isPaused, isControlCoolingDown]);
+    const logMsg = messages[Math.floor(Math.random() * messages.length)];
+    setLogEntries(prev => [`${new Date().toLocaleTimeString()} - ${logMsg}`, ...prev.slice(0, 99)]);
+    startCooldown(); // Start cooldown after successful action
+    return true; // Indicate action was successful
+  // Add missing dependencies
+  }, [isControlCoolingDown, startCooldown, cooldownMessages, pauseMessages]); 
 
-  // Cleanup cooldown timer on unmount
-  useEffect(() => {
-      return () => {
-          if (controlCooldownTimer.current) {
-              clearTimeout(controlCooldownTimer.current);
-          }
-      };
-  }, []);
+  const handlePauseToggle = () => {
+    if (addControlLog(pauseMessages)) {
+      setIsPaused(prev => !prev);
+    }
+  };
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-black">
@@ -333,7 +290,7 @@ export default function ExplorePage() {
                          variants={{ hidden: { opacity: 0, y: 15 }, visible: { opacity: 1, y: 0 } }}
                          whileHover={{ scale: 1.02, backgroundColor: 'rgba(255,255,255,0.05)', transition: { duration: 0.2 } }}
                          whileTap={{ scale: 0.98, backgroundColor: 'rgba(0, 255, 255, 0.1)' }} 
-                         onClick={() => handleStatusItemClick(item)} // Added onClick
+                         onClick={() => handlePauseToggle()} // Added onClick
                          layout // Enable layout animation for smoother updates if needed
                          className="bg-black/40 rounded-md p-2.5 border border-white/10 hover:border-cyan-400/50 transition-colors duration-200 shadow-sm cursor-pointer" // Added cursor-pointer
                        >
