@@ -70,21 +70,34 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
     color: string | number,
     lineType: LineInfo['type']
   ) => {
-    // Make particles smaller as requested, but with better glow effect
+    // Make particles smaller with blue glow
     const particleSize = lineType === 'interconnect' ? 1.8 : 1.2; // Smaller sizes
     
-    // Create a more complex particle with glow effect
+    // Create a more complex particle with blue glow effect, regardless of the original color
     const geometry = new THREE.SphereGeometry(particleSize, 8, 8);
     
-    // Get color for glow effect
+    // Create a blue-based color for the glow, but keep original color influence
     const particleColor = new THREE.Color(color);
-    // Increase saturation and brightness for the glow
+    // Get original HSL
     const hsl = { h: 0, s: 0, l: 0 };
     particleColor.getHSL(hsl);
-    particleColor.setHSL(hsl.h, Math.min(1, hsl.s * 1.5), Math.min(1, hsl.l * 1.5));
+    
+    // Create core color (keep some of the original hue but shift toward blue)
+    const coreColor = new THREE.Color().setHSL(
+      0.6, // Blue hue (0.6 is blue in HSL)
+      0.9, // High saturation
+      0.7  // Good brightness
+    );
+    
+    // Create a bright blue glow color
+    const glowColor = new THREE.Color().setHSL(
+      0.6, // Blue hue
+      1.0, // Maximum saturation
+      0.8  // Very bright
+    );
     
     const coreMaterial = new THREE.MeshBasicMaterial({
-      color: particleColor,
+      color: coreColor,
       transparent: true,
       opacity: 1.0,
       blending: THREE.AdditiveBlending,
@@ -94,15 +107,15 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
     // Create the main particle
     const mesh = new THREE.Mesh(geometry, coreMaterial);
 
-    // Create a larger, softer glow around the particle
-    const glowSize = particleSize * 2.5;
+    // Create a larger, intensely glowing blue aura
+    const glowSize = particleSize * 3.0; // Larger glow
     const glowGeometry = new THREE.SphereGeometry(glowSize, 16, 16);
     
-    // Make the glow material slightly transparent and use additive blending
+    // Make the glow material intensely blue with maximum emission effect
     const glowMaterial = new THREE.MeshBasicMaterial({
-      color: particleColor,
+      color: glowColor,
       transparent: true,
-      opacity: 0.4,
+      opacity: 0.6, // More visible glow
       blending: THREE.AdditiveBlending,
       depthWrite: false,
       side: THREE.BackSide // Inside render for a soft glow
@@ -122,8 +135,7 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
     // Add to the group instead of scene for proper rotation
     groupRef.current?.add(mesh);
 
-    // Significantly more random speed variation
-    // Base speed factor reduced and more randomness added
+    // Speed logic (no change needed here)
     let speedFactor = 0.4 + Math.random() * 0.8; // Much more variation (0.4 to 1.2)
     
     // Apply type-specific adjustments
@@ -334,37 +346,124 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
           Math.min(1, hsl.l + 0.2)  // Slightly brighter
         );
 
+        // First pass: ensure each node has at least one connection
+        // Keep track of nodes that have been connected
+        const connectedNodes1 = new Set<number>();
+        const connectedNodes2 = singleGroup ? connectedNodes1 : new Set<number>();
+
+        // Function to add a connection between two nodes
+        const addConnection = (i: number, j: number) => {
+          const p1 = nodes1[i].position;
+          const p2 = nodes2[j].position;
+          
+          // Add line segment points
+          positions.push(p1.x, p1.y, p1.z);
+          positions.push(p2.x, p2.y, p2.z);
+          
+          // Add colors for gradient effect (start and end points have different colors)
+          if (lineType === 'interconnect') {
+            // For interconnects, create a gradient from core to periphery
+            colors.push(baseColorObj.r, baseColorObj.g, baseColorObj.b);
+            colors.push(endColorObj.r, endColorObj.g, endColorObj.b);
+          } else {
+            // For other lines, create a subtle gradient along the line
+            colors.push(baseColorObj.r, baseColorObj.g, baseColorObj.b);
+            colors.push(baseColorObj.r * 0.9, baseColorObj.g * 0.9, baseColorObj.b * 0.9);
+          }
+          
+          // Mark nodes as connected
+          connectedNodes1.add(i);
+          connectedNodes2.add(j);
+        };
+
+        // First pass: ensure each node in nodes1 has at least one connection
         for (let i = 0; i < nodes1.length; i++) {
-          // If single group, start j from i+1 to avoid self-connections and duplicates
-          // If two groups, start j from 0
-          const startJ = singleGroup ? i + 1 : 0; 
+          if (connectedNodes1.has(i)) continue; // Already connected
+
+          // Find closest node within maxDistance
+          let closestIdx = -1;
+          let closestDist = Infinity;
+          
+          const startJ = singleGroup ? i + 1 : 0; // Avoid self-connections in single group
+          
           for (let j = startJ; j < nodes2.length; j++) {
-               if (Math.random() > probability) continue;
+            if (singleGroup && i === j) continue; // Skip self
+            
+            const p1 = nodes1[i].position;
+            const p2 = nodes2[j].position;
+            const distance = p1.distanceTo(p2);
+            
+            if (distance < maxDistance && distance < closestDist) {
+              closestDist = distance;
+              closestIdx = j;
+            }
+          }
+          
+          // If found a connection, add it
+          if (closestIdx >= 0) {
+            addConnection(i, closestIdx);
+          }
+        }
 
-               const p1 = nodes1[i].position;
-               const p2 = nodes2[j].position;
-               const distance = p1.distanceTo(p2);
-
-               if (distance < maxDistance) {
-                  // Add line segment points
-                  positions.push(p1.x, p1.y, p1.z);
-                  positions.push(p2.x, p2.y, p2.z);
-                  
-                  // Add colors for gradient effect (start and end points have different colors)
-                  if (lineType === 'interconnect') {
-                    // For interconnects, create a gradient from core to periphery
-                    // Core point (more intense color)
-                    colors.push(baseColorObj.r, baseColorObj.g, baseColorObj.b);
-                    // Peripheral point (lighter color)
-                    colors.push(endColorObj.r, endColorObj.g, endColorObj.b);
-                  } else {
-                    // For other lines, create a subtle gradient along the line
-                    // First point
-                    colors.push(baseColorObj.r, baseColorObj.g, baseColorObj.b);
-                    // Second point
-                    colors.push(baseColorObj.r * 0.9, baseColorObj.g * 0.9, baseColorObj.b * 0.9);
-                  }
+        // If using two different groups, ensure nodes2 are also connected
+        if (!singleGroup) {
+          for (let j = 0; j < nodes2.length; j++) {
+            if (connectedNodes2.has(j)) continue; // Already connected
+            
+            // Find closest node from nodes1
+            let closestIdx = -1;
+            let closestDist = Infinity;
+            
+            for (let i = 0; i < nodes1.length; i++) {
+              const p1 = nodes1[i].position;
+              const p2 = nodes2[j].position;
+              const distance = p1.distanceTo(p2);
+              
+              if (distance < maxDistance && distance < closestDist) {
+                closestDist = distance;
+                closestIdx = i;
               }
+            }
+            
+            // If found a connection, add it
+            if (closestIdx >= 0) {
+              addConnection(closestIdx, j);
+            }
+          }
+        }
+
+        // Second pass: add random additional connections based on probability
+        for (let i = 0; i < nodes1.length; i++) {
+          const startJ = singleGroup ? i + 1 : 0; // Avoid self-connections and duplicates
+          for (let j = startJ; j < nodes2.length; j++) {
+            // Skip existing connections (this check is approximate for performance reasons)
+            if (singleGroup && (i === j)) continue;
+            
+            // Generate additional random connections
+            if (Math.random() > (1 - probability)) {
+              const p1 = nodes1[i].position;
+              const p2 = nodes2[j].position;
+              const distance = p1.distanceTo(p2);
+
+              if (distance < maxDistance) {
+                // Check if this exact connection already exists
+                // This is a simplified check that doesn't catch all duplicates but is efficient
+                let exists = false;
+                for (let k = 0; k < positions.length; k += 6) {
+                  if ((positions[k] === p1.x && positions[k+1] === p1.y && positions[k+2] === p1.z &&
+                      positions[k+3] === p2.x && positions[k+4] === p2.y && positions[k+5] === p2.z) ||
+                      (positions[k] === p2.x && positions[k+1] === p2.y && positions[k+2] === p2.z &&
+                      positions[k+3] === p1.x && positions[k+4] === p1.y && positions[k+5] === p1.z)) {
+                    exists = true;
+                    break;
+                  }
+                }
+                
+                if (!exists) {
+                  addConnection(i, j);
+                }
+              }
+            }
           }
         }
         
@@ -406,8 +505,9 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
         const material = new THREE.LineBasicMaterial({
             vertexColors: true,
             transparent: true,
-            // Reduce opacity for interconnect lines significantly
-            opacity: lineType === 'interconnect' ? 0.15 : 0.4, // Much lower opacity for interconnects
+            // Make lines less visible overall, especially core lines
+            opacity: lineType === 'core' ? 0.15 : 
+                     lineType === 'interconnect' ? 0.15 : 0.3, // Lower opacity for core and interconnect
             blending: THREE.AdditiveBlending,
             linewidth: 1,
         });
