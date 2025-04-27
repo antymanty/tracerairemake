@@ -122,19 +122,22 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
     // Add to the group instead of scene for proper rotation
     groupRef.current?.add(mesh);
 
-    // Keep speed logic with minor adjustments
-    let speedFactor = 0.8;
-    if (lineType === 'core') speedFactor = 1.0;
-    if (lineType === 'interconnect') speedFactor = 1.5;
+    // Significantly more random speed variation
+    // Base speed factor reduced and more randomness added
+    let speedFactor = 0.4 + Math.random() * 0.8; // Much more variation (0.4 to 1.2)
+    
+    // Apply type-specific adjustments
+    if (lineType === 'core') speedFactor *= 0.8 + Math.random() * 0.4; // 0.32 to 1.44
+    if (lineType === 'interconnect') speedFactor *= 0.7 + Math.random() * 0.6; // 0.28 to 1.92
 
     return {
       mesh,
       startPoint,
       endPoint,
       progress: initialProgress,
-      speed: (0.015 + Math.random() * 0.01) * speedFactor,
+      speed: (0.01 + Math.random() * 0.02) * speedFactor, // More random base speed
       direction: 1 as 1 | -1, // Always start forward for more clarity
-      life: 2 + Math.floor(Math.random() * 3),
+      life: 1 + Math.floor(Math.random() * 3), // Shorter lifespan
     };
   }, []);
 
@@ -312,29 +315,106 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
       };
 
       // --- Generate Lines Function (MODIFIED to use Meshes) ---
-      const generateLinesFromMeshes = (nodes1: THREE.Mesh[], nodes2: THREE.Mesh[], maxDistance: number, probability: number): Float32Array => {
-          const lines: number[] = [];
-          const singleGroup = nodes1 === nodes2;
+      const generateLinesFromMeshes = (nodes1: THREE.Mesh[], nodes2: THREE.Mesh[], maxDistance: number, probability: number, lineType: LineInfo['type'], baseColor: string | number): LineInfo => {
+        // Create BufferGeometry for lines with colors
+        const positions: number[] = [];
+        const colors: number[] = [];
+        const singleGroup = nodes1 === nodes2;
+        
+        // Convert base color to THREE.Color for gradient calculations
+        const baseColorObj = new THREE.Color(baseColor);
+        // Get HSL values for creating gradients
+        const hsl = { h: 0, s: 0, l: 0 };
+        baseColorObj.getHSL(hsl);
+        
+        // Create a slightly different color for the gradient ends
+        const endColorObj = new THREE.Color().setHSL(
+          hsl.h,
+          Math.max(0, hsl.s - 0.2), // Slightly less saturated 
+          Math.min(1, hsl.l + 0.2)  // Slightly brighter
+        );
 
-          for (let i = 0; i < nodes1.length; i++) {
-            // If single group, start j from i+1 to avoid self-connections and duplicates
-            // If two groups, start j from 0
-            const startJ = singleGroup ? i + 1 : 0; 
-            for (let j = startJ; j < nodes2.length; j++) {
-                 if (Math.random() > probability) continue;
+        for (let i = 0; i < nodes1.length; i++) {
+          // If single group, start j from i+1 to avoid self-connections and duplicates
+          // If two groups, start j from 0
+          const startJ = singleGroup ? i + 1 : 0; 
+          for (let j = startJ; j < nodes2.length; j++) {
+               if (Math.random() > probability) continue;
 
-                 const p1 = nodes1[i].position;
-                 const p2 = nodes2[j].position;
-                 const distance = p1.distanceTo(p2);
+               const p1 = nodes1[i].position;
+               const p2 = nodes2[j].position;
+               const distance = p1.distanceTo(p2);
 
-                 if (distance < maxDistance) {
-                    lines.push(p1.x, p1.y, p1.z);
-                    lines.push(p2.x, p2.y, p2.z);
-                }
+               if (distance < maxDistance) {
+                  // Add line segment points
+                  positions.push(p1.x, p1.y, p1.z);
+                  positions.push(p2.x, p2.y, p2.z);
+                  
+                  // Add colors for gradient effect (start and end points have different colors)
+                  if (lineType === 'interconnect') {
+                    // For interconnects, create a gradient from core to periphery
+                    // Core point (more intense color)
+                    colors.push(baseColorObj.r, baseColorObj.g, baseColorObj.b);
+                    // Peripheral point (lighter color)
+                    colors.push(endColorObj.r, endColorObj.g, endColorObj.b);
+                  } else {
+                    // For other lines, create a subtle gradient along the line
+                    // First point
+                    colors.push(baseColorObj.r, baseColorObj.g, baseColorObj.b);
+                    // Second point
+                    colors.push(baseColorObj.r * 0.9, baseColorObj.g * 0.9, baseColorObj.b * 0.9);
+                  }
+              }
+          }
+        }
+        
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+        
+        // Add morphing targets for animation
+        if (positions.length > 0) {
+          const morphPositions: number[] = [];
+          // Copy original positions but add small random deviations for subtle animation
+          for (let i = 0; i < positions.length; i += 3) {
+            const x = positions[i];
+            const y = positions[i + 1];
+            const z = positions[i + 2];
+            
+            // Add subtle variation for the morph target
+            // Note: Keep interconnect endpoints fixed and only morph midpoints
+            if (i % 6 === 3 && lineType === 'interconnect') {
+              // This is an end point of interconnect, keep it fixed
+              morphPositions.push(x, y, z);
+            } else {
+              // Add subtle random movement
+              const variation = lineType === 'core' ? 5 : 3;
+              morphPositions.push(
+                x + (Math.random() - 0.5) * variation,
+                y + (Math.random() - 0.5) * variation,
+                z + (Math.random() - 0.5) * variation
+              );
             }
           }
-          return new Float32Array(lines);
-      };
+          
+          const morphTarget = new THREE.Float32BufferAttribute(morphPositions, 3);
+          morphTarget.name = 'target1';
+          geometry.morphAttributes.position = [morphTarget];
+        }
+        
+        // Create a material with vertex colors and transparency
+        const material = new THREE.LineBasicMaterial({
+            vertexColors: true,
+            transparent: true,
+            // Reduce opacity for interconnect lines significantly
+            opacity: lineType === 'interconnect' ? 0.15 : 0.4, // Much lower opacity for interconnects
+            blending: THREE.AdditiveBlending,
+            linewidth: 1,
+        });
+        
+        const lineSegments = new THREE.LineSegments(geometry, material);
+        return { lineSegments, type: lineType, color: baseColor };
+    };
       
       // --- Create Core Nodes (as Meshes) ---
       const coreCenter = new THREE.Vector3(CORE_CONFIG.position.x, CORE_CONFIG.position.y, CORE_CONFIG.position.z);
@@ -342,18 +422,16 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
       coreNodeMeshesRef.current.forEach(mesh => groupRef.current?.add(mesh));
 
       // --- Create Core Lines (using Meshes) ---
-      const coreLinePositions = generateLinesFromMeshes(coreNodeMeshesRef.current, coreNodeMeshesRef.current, CORE_CONFIG.connectionDistance, CORE_CONFIG.connectionProbability);
-      const coreLineGeometry = new THREE.BufferGeometry();
-      coreLineGeometry.setAttribute('position', new THREE.BufferAttribute(coreLinePositions, 3));
-      const coreLineMaterial = new THREE.LineBasicMaterial({ 
-          color: CORE_CONFIG.color, 
-          transparent: true, 
-          opacity: 0.3, // Slightly increased opacity
-          blending: THREE.AdditiveBlending 
-      });
-      const coreLineSegments = new THREE.LineSegments(coreLineGeometry, coreLineMaterial);
-      groupRef.current?.add(coreLineSegments);
-      allLinesRef.current.push({ lineSegments: coreLineSegments, type: 'core', color: CORE_CONFIG.color });
+      const coreLineInfo = generateLinesFromMeshes(
+          coreNodeMeshesRef.current, 
+          coreNodeMeshesRef.current, 
+          CORE_CONFIG.connectionDistance, 
+          CORE_CONFIG.connectionProbability,
+          'core',
+          CORE_CONFIG.color
+      );
+      groupRef.current?.add(coreLineInfo.lineSegments);
+      allLinesRef.current.push(coreLineInfo);
 
       // --- Create Peripheral Nodes & Lines (Adjusted Opacity) ---
       const allPeripheralNodeMeshes: THREE.Mesh[] = [];
@@ -376,34 +454,29 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
         allPeripheralNodeMeshes.push(...currentPeripheralMeshes);
 
         // Generate Peripheral Lines (within the cluster)
-        const periLinePositions = generateLinesFromMeshes(currentPeripheralMeshes, currentPeripheralMeshes, PERIPHERAL_CONFIG.connectionDistance, PERIPHERAL_CONFIG.connectionProbability);
-        const periLineGeometry = new THREE.BufferGeometry();
-        periLineGeometry.setAttribute('position', new THREE.BufferAttribute(periLinePositions, 3));
-        const periLineMaterial = new THREE.LineBasicMaterial({ 
-            color: periColor, 
-            transparent: true, 
-            opacity: 0.2, // Slightly increased opacity
-            blending: THREE.AdditiveBlending 
-        });
-        const peripheralLineSegments = new THREE.LineSegments(periLineGeometry, periLineMaterial);
-        groupRef.current?.add(peripheralLineSegments);
-        allLinesRef.current.push({ lineSegments: peripheralLineSegments, type: 'peripheral', color: periColor });
+        const periLineInfo = generateLinesFromMeshes(
+            currentPeripheralMeshes, 
+            currentPeripheralMeshes, 
+            PERIPHERAL_CONFIG.connectionDistance, 
+            PERIPHERAL_CONFIG.connectionProbability,
+            'peripheral',
+            periColor
+        );
+        groupRef.current?.add(periLineInfo.lineSegments);
+        allLinesRef.current.push(periLineInfo);
       }
 
       // --- Create Core-Peripheral Lines (using Meshes) ---
-      const corePeripheralLinePoints = generateLinesFromMeshes(coreNodeMeshesRef.current, allPeripheralNodeMeshes, PERIPHERAL_CONFIG.distanceFromCore * 1.1, PERIPHERAL_CONFIG.coreConnectionProbability); 
-      const cpLineGeometry = new THREE.BufferGeometry(); // Declare here
-      // Use the declared variable below
-      cpLineGeometry.setAttribute('position', new THREE.BufferAttribute(corePeripheralLinePoints, 3)); 
-      const cpLineMaterial = new THREE.LineBasicMaterial({ 
-           color: 0xaaaaaa, 
-           transparent: true, 
-           opacity: 0.05, 
-           blending: THREE.AdditiveBlending 
-       });
-       const cpLineSegments = new THREE.LineSegments(cpLineGeometry, cpLineMaterial);
-       groupRef.current?.add(cpLineSegments);
-       allLinesRef.current.push({ lineSegments: cpLineSegments, type: 'interconnect', color: 0xaaaaaa });
+      const cpLineInfo = generateLinesFromMeshes(
+          coreNodeMeshesRef.current, 
+          allPeripheralNodeMeshes, 
+          PERIPHERAL_CONFIG.distanceFromCore * 1.1, 
+          PERIPHERAL_CONFIG.coreConnectionProbability * 0.6, // Reduce density of interconnect lines
+          'interconnect',
+          0x667788 // Change from white (0xaaaaaa) to a more subtle blue-gray
+      );
+      groupRef.current?.add(cpLineInfo.lineSegments);
+      allLinesRef.current.push(cpLineInfo);
 
       rendererRef.current = new THREE.WebGLRenderer({ 
         alpha: true,
@@ -515,14 +588,14 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
            }
          }
       };
-      initDataParticles(30); // Slightly more initial particles
+      initDataParticles(15); // Fewer initial particles (was 30)
 
       // --- Periodically Create New Particles (REVISED LOGIC) ---
       let particleTimeout: NodeJS.Timeout | null = null;
       const scheduleNextParticle = () => {
           if (particleTimeout) clearTimeout(particleTimeout);
           particleTimeout = setTimeout(() => {
-              if (dataParticlesRef.current.length < 50 && groupRef.current) {
+              if (dataParticlesRef.current.length < 25 && groupRef.current) { // Fewer max particles (was 50)
                  // Same logic as init, but add just one particle at a time
                  const interconnectLines = allLinesRef.current.filter(l => l.type === 'interconnect');
                  const coreLines = allLinesRef.current.filter(l => l.type === 'core');
@@ -571,7 +644,7 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
                  }
               }
               scheduleNextParticle();
-          }, 100 + Math.random() * 200); // Faster spawn rate for more activity
+          }, 500 + Math.random() * 2000); // Much longer delay between spawns (0.5 to 2.5 seconds)
       };
       scheduleNextParticle();
 
@@ -655,6 +728,16 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
       
       frameRef.current++;
       rendererRef.current.render(sceneRef.current, camera);
+
+      // Add morphing animation for lines
+      const lineMorphTime = Date.now() * 0.001; // Animation time variable
+      allLinesRef.current.forEach(lineInfo => {
+        if (lineInfo.lineSegments.morphTargetInfluences && lineInfo.lineSegments.morphTargetInfluences.length > 0) {
+          // Create a smooth oscillation for the morph target influence
+          const sinValue = Math.sin(lineMorphTime * 0.5 + Math.random() * 0.5);
+          lineInfo.lineSegments.morphTargetInfluences[0] = Math.abs(sinValue) * 0.5; // Scale down the effect
+        }
+      });
     }
 
     // Add Original Event Listeners 
