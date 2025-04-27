@@ -32,12 +32,12 @@ const CORE_CONFIG = {
 const NUM_PERIPHERALS = 6;
 const PERIPHERAL_CONFIG = {
   distanceFromCore: 450, 
-  nodeCount: 18, // Further reduced
+  nodeCount: 18,
   radius: 70,    
   colors: ['#FF66FF', '#FF9933', '#66FF66', '#FFFF66', '#66B2FF', '#FF6666'],
-  connectionDistance: 90, // Reduced distance
-  connectionProbability: 0.12, // Further reduced
-  coreConnectionProbability: 0.008, // Drastically reduced interconnects
+  connectionDistance: 90,
+  connectionProbability: 0.12,
+  coreConnectionProbability: 0.003, // Drastically reduced from previous 0.008 value
   nodeSize: 2.0, 
 };
 // --- END ADJUSTED CONFIGURATION ---
@@ -533,14 +533,52 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
         allLinesRef.current.push(periLineInfo);
       }
 
-      // --- Create Core-Peripheral Lines (using Meshes) ---
+      // --- Create Core-Peripheral Lines (More Selective Approach) ---
+      // First make sure all peripheral clusters are properly connected internally
+      for (let i = 0; i < peripheralNodeMeshesRef.current.length; i++) {
+        const currentCluster = peripheralNodeMeshesRef.current[i];
+        // Ensure good connectivity within each cluster
+        const periLineInfo = generateLinesFromMeshes(
+            currentCluster, 
+            currentCluster, 
+            PERIPHERAL_CONFIG.connectionDistance * 1.2, // Slightly increased connection distance within cluster
+            PERIPHERAL_CONFIG.connectionProbability * 1.5, // Increase internal connectivity
+            'peripheral',
+            PERIPHERAL_CONFIG.colors[i % PERIPHERAL_CONFIG.colors.length]
+        );
+        groupRef.current?.add(periLineInfo.lineSegments);
+        allLinesRef.current.push(periLineInfo);
+      }
+
+      // Then create limited interconnect lines from core to periphery
+      // Select only a few representative nodes from each peripheral cluster
+      const selectedPeripheralNodes: THREE.Mesh[] = [];
+      peripheralNodeMeshesRef.current.forEach(clusterNodes => {
+        // Select just 1-2 nodes from each cluster to connect to core (instead of all nodes)
+        const nodesToConnect = Math.max(1, Math.floor(clusterNodes.length * 0.1)); // 10% of nodes or at least 1
+        
+        // Pick nodes that are closest to the core for more natural connections
+        const corePosition = new THREE.Vector3(CORE_CONFIG.position.x, CORE_CONFIG.position.y, CORE_CONFIG.position.z);
+        
+        // Sort nodes by distance to core
+        const sortedByDistance = [...clusterNodes].sort((a, b) => 
+          a.position.distanceTo(corePosition) - b.position.distanceTo(corePosition)
+        );
+        
+        // Select the closest nodes
+        for (let i = 0; i < nodesToConnect; i++) {
+          selectedPeripheralNodes.push(sortedByDistance[i]);
+        }
+      });
+
+      // Create interconnect lines only between core and selected peripheral nodes
       const cpLineInfo = generateLinesFromMeshes(
           coreNodeMeshesRef.current, 
-          allPeripheralNodeMeshes, 
+          selectedPeripheralNodes,  // Use only selected nodes instead of all
           PERIPHERAL_CONFIG.distanceFromCore * 1.1, 
-          PERIPHERAL_CONFIG.coreConnectionProbability * 0.6, // Reduce density of interconnect lines
+          PERIPHERAL_CONFIG.coreConnectionProbability * 0.4, // Further reduce density of interconnect lines
           'interconnect',
-          0x667788 // Change from white (0xaaaaaa) to a more subtle blue-gray
+          0x667788 // Subtle blue-gray color
       );
       groupRef.current?.add(cpLineInfo.lineSegments);
       allLinesRef.current.push(cpLineInfo);
