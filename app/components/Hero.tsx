@@ -130,7 +130,7 @@ export default function Hero() {
           href="https://x.com/" 
           target="_blank" 
           rel="noopener noreferrer"
-          className="text-white/70 hover:text-white transition-colors"
+          className="text-white hover:text-white/80 transition-colors"
         >
           <Twitter className="w-6 h-6" />
         </a>
@@ -152,7 +152,7 @@ export default function Hero() {
 
       <div id="hero-content" className="container mx-auto px-6 text-center relative z-10 flex flex-col items-center">
         <motion.h1 
-          className="text-9xl font-bold tracking-tight mb-12 text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-cyan-400 to-blue-500 filter drop-shadow-lg"
+          className="text-9xl font-bold tracking-tight mb-12 text-white filter drop-shadow-lg"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.5 }}
