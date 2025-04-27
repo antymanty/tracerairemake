@@ -63,41 +63,134 @@ const getStatusColor = (status: string): string => {
   }
 };
 
+// --- Helper function for random updates ---
+const fluctuateValue = (baseValue: string): string => {
+  if (baseValue.includes('%')) {
+    const num = parseFloat(baseValue.replace('%', ''));
+    return `${(num + (Math.random() - 0.5) * 0.05).toFixed(4)}%`;
+  }
+  if (baseValue.includes('PFLOPS')) {
+    const num = parseFloat(baseValue.replace(' PFLOPS', ''));
+    return `${(num + (Math.random() - 0.5) * 0.1).toFixed(3)} PFLOPS`;
+  }
+   if (baseValue.includes('T Params')) {
+    const num = parseFloat(baseValue.replace('T Params', ''));
+    return `${(num + (Math.random() - 0.5) * 0.01).toFixed(3)}T Params`;
+  }
+  if (baseValue.includes('TB/s')) {
+    const num = parseFloat(baseValue.replace(' TB/s', ''));
+    return `${(num + (Math.random() - 0.5) * 0.5).toFixed(2)} TB/s`;
+  }
+   if (baseValue.includes('ms')) {
+    const num = parseFloat(baseValue.replace(' ms', ''));
+    return `${(num + (Math.random() - 0.5) * 0.2).toFixed(2)} ms`;
+  }
+  return baseValue; // No change for others like '100%'
+};
+
+const cycleStatus = (currentStatus: string): string => {
+  const statuses = ['OPTIMIZING', 'CALIBRATING', 'ACTIVE', 'STABLE', 'LEARNING', 'STREAMING', 'LOW', 'ENFORCED'];
+  if (currentStatus === 'ENFORCED') return currentStatus; // Don't cycle compliance
+  const currentIndex = statuses.indexOf(currentStatus.toUpperCase());
+  if (currentIndex !== -1 && Math.random() < 0.1) { // Low chance to change status
+      return statuses[(currentIndex + 1 + Math.floor(Math.random() * 3 -1)) % (statuses.length -1)]; // Avoid ENFORCED
+  }
+  return currentStatus;
+}
+
 export default function ExplorePage() {
   const [showInfo, setShowInfo] = useState(true);
   const [logEntries, setLogEntries] = useState<string[]>([]);
   const [currentLoss, setCurrentLoss] = useState(0.15 + Math.random() * 0.1);
   const [isPaused, setIsPaused] = useState(false);
   const logContainerRef = useRef<HTMLDivElement>(null);
+  // State for dynamic protocol data
+  const [dynamicProtocolData, setDynamicProtocolData] = useState<typeof protocolData>([...protocolData]);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null); // Ref for log timeout
 
-  // Simulate log generation and loss update
+  // --- Simulate Dynamic Data Updates (Randomized Item Updates) --- 
   useEffect(() => {
     if (isPaused) return;
+    const dataUpdateInterval = setInterval(() => {
+      setDynamicProtocolData(prevData => 
+        prevData.map((item) => {
+          // Only update non-static items
+          if (item.title === 'Ethical Oversight Matrix') return item; 
 
-    const generateLog = () => {
+          // *** Randomly decide IF this item updates this cycle (e.g., 30% chance) ***
+          if (Math.random() < 0.7) { 
+              return item; // No update this cycle for this item
+          }
+          
+          // Apply updates if chosen
+          return {
+            ...item,
+            displayValue: fluctuateValue(item.displayValue),
+            status: item.title === 'Quantum-Assisted Gradient Descent' || item.title === 'Cognitive Simulation Engine' 
+                    ? cycleStatus(item.status) 
+                    : item.status,
+          };
+        })
+      );
+    // Keep interval relatively consistent, randomness comes from *which* items update
+    }, 1800); // Update attempt every 1.8 seconds
+
+    return () => clearInterval(dataUpdateInterval);
+  }, [isPaused]);
+
+  // --- Simulate Log Generation (Randomized Timing) ---
+  const scheduleNextLog = useCallback(() => {
+      // Clear any existing timeout before scheduling a new one
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      // Schedule the next log generation with a widely varying random delay
+      timeoutRef.current = setTimeout(() => {
+          generateLog();
+          if (!isPaused) {
+             scheduleNextLog(); // Schedule the next one recursively
+          }
+      // More variation: 100ms to 2100ms delay
+      }, 100 + Math.random() * 2000); 
+  }, [isPaused]);
+
+   const generateLog = () => {
       const epoch = Math.floor(1000 + Math.random() * 9000);
       const batch = Math.floor(Math.random() * 500);
       const loss = (0.005 + Math.random() * 0.05).toFixed(5);
       const actions = [
         `Epoch ${epoch}/10000 | Batch ${batch}/500 | Loss: ${loss}`,
         `[Quantum Core] Calibration cycle complete. Fidelity: 99.4${Math.floor(Math.random() * 9)}%`,
-        `[Neural Engine] Synaptic adjustment applied. Throughput stable. `,
+        `[Neural Engine] Synaptic adjustment applied. Throughput stable.`,
         `[Data Substrate] Ingesting stream: simulation_data_${Date.now()}.bin`,
         `[Ethics Matrix] Heuristic check passed. Confidence: ${(98 + Math.random() * 2).toFixed(2)}%`,
         `[Predictive Unit] Anomaly detected. Confidence: ${(Math.random() * 30).toFixed(2)}%. Monitoring...`,
         `[Self-Healing Grid] Minor node fluctuation corrected.`
       ];
       const newLog = actions[Math.floor(Math.random() * actions.length)];
-      setLogEntries(prev => [`${new Date().toLocaleTimeString()} - ${newLog}`, ...prev.slice(0, 99)]); // Keep last 100 entries, add new at top
-      
-      // Simulate loss decreasing
+      setLogEntries(prev => [`${new Date().toLocaleTimeString()} - ${newLog}`, ...prev.slice(0, 99)]); 
       setCurrentLoss(prev => Math.max(0.001, prev * (0.99 + Math.random() * 0.005) - 0.0001));
     };
 
-    const intervalId = setInterval(generateLog, 700 + Math.random() * 600); // Random interval
+  useEffect(() => {
+    if (!isPaused) {
+      scheduleNextLog(); // Start the log generation loop
+    } else {
+       // Clear timeout if paused
+       if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+          timeoutRef.current = null;
+       }
+    }
 
-    return () => clearInterval(intervalId);
-  }, [isPaused]);
+    // Cleanup function to clear timeout on unmount or when isPaused changes
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  // Rerun effect when isPaused changes to start/stop the loop
+  }, [isPaused, scheduleNextLog]); 
 
   // Auto-scroll log container
   useEffect(() => {
@@ -108,8 +201,13 @@ export default function ExplorePage() {
 
   // Mock Control Actions
   const handlePauseToggle = useCallback(() => {
-    setIsPaused(prev => !prev);
-    setLogEntries(prev => [`${new Date().toLocaleTimeString()} - [SYSTEM] Simulation ${isPaused ? 'Resumed' : 'Paused'}.`, ...prev.slice(0, 99)]);
+     const newState = !isPaused;
+     setIsPaused(newState);
+     // Log only when state actually changes
+     setLogEntries(prev => [
+       `${new Date().toLocaleTimeString()} - [SYSTEM] Simulation ${newState ? 'Paused' : 'Resumed'}.`, 
+       ...prev.slice(0, 99)
+      ]);
   }, [isPaused]);
 
   const handleInjectData = useCallback(() => {
@@ -122,156 +220,178 @@ export default function ExplorePage() {
      setLogEntries(prev => [`${new Date().toLocaleTimeString()} - [SYSTEM] Initiating Quantum Core recalibration...`, ...prev.slice(0, 99)]);
   }, []);
 
+  // Handler for Status Item Click
+  const handleStatusItemClick = useCallback((item: typeof protocolData[0]) => {
+    if (!isPaused) { // Check current state before setting
+       setIsPaused(true); // Directly set to true
+       setLogEntries(prev => [
+         `${new Date().toLocaleTimeString()} - [SYSTEM] Simulation Paused for Inspection.`, 
+         ...prev.slice(0, 99)
+       ]);
+    }
+    // Log inspection regardless of previous pause state
+    setLogEntries(prev => [
+      `${new Date().toLocaleTimeString()} - [INSPECT] Querying details for: ${item.title}... Status: ${item.status}, Value: ${item.displayValue}`, 
+      ...prev.slice(0, 98)
+    ]);
+    if (logContainerRef.current) {
+      logContainerRef.current.scrollTop = 0;
+    }
+  }, [isPaused]); // Keep isPaused dependency
+
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-black">
       <div className="absolute inset-0 bg-black z-0">
         <NeuralBackground />
       </div>
 
-      {/* --- Main Grid Layout --- */}
-      {/* Simplified grid to 1 column as right panels are removed */}
-      <div className="absolute inset-0 p-4 md:p-8 grid grid-cols-1 gap-4 md:gap-8 z-10 pointer-events-none">
-        
-        {/* Left Panel (Info + Status + Log) - Now takes full width */}
-        <div className="md:col-span-1 pointer-events-auto h-full">
-          <AnimatePresence>
-            {showInfo && (
-              <motion.div
-                initial={{ opacity: 0, x: -50 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -50 }}
-                transition={{ duration: 0.5, ease: "circOut" }}
-                className="h-full flex flex-col"
-              >
-                {/* Container for Left Panel Content */}
-                <div className="relative bg-black/60 backdrop-blur-xl rounded-lg border border-white/10 overflow-hidden shadow-2xl shadow-black/30 flex-grow flex flex-col">
-                  {/* Header Gradient */}
-                  <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-emerald-500 via-cyan-500 to-blue-500" />
-                  
-                  {/* Top Section: Title + Paragraph */}
-                  <div className="relative p-4 md:p-6 flex-shrink-0 border-b border-white/10">
-                    <motion.h1
-                      className="text-xl md:text-2xl font-bold mb-2 bg-gradient-to-r from-emerald-300 via-cyan-300 to-blue-300 bg-clip-text text-transparent flex items-center gap-2"
-                    >
-                      <Zap size={20} className="text-cyan-400" /> TraceAI Protocol Status
-                    </motion.h1>
-                    <motion.p
-                      className="text-white/70 text-xs md:text-sm"
-                    >
-                       Real-time monitoring of core functions.
-                    </motion.p>
-                  </div>
+      {/* Removed Main Grid Layout wrapper */}
+      {/* Reverted Left Panel to original absolute positioning and width */}
+      <AnimatePresence>
+        {showInfo && (
+          <motion.div
+            initial={{ opacity: 0, x: -50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            transition={{ duration: 0.5, ease: "circOut" }}
+            // Restored absolute positioning and max-width
+            className="absolute left-4 top-20 md:left-8 md:top-24 w-[90%] max-w-[480px] z-20 h-[calc(100vh-10rem)] md:h-[calc(100vh-12rem)] flex flex-col"
+          >
+            {/* Container for Panel Content */}
+            <div className="relative bg-black/60 backdrop-blur-xl rounded-lg border border-white/10 overflow-hidden shadow-2xl shadow-black/30 flex-grow flex flex-col">
+              {/* Header Gradient */}
+              <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-emerald-500 via-cyan-500 to-blue-500" />
+              
+              {/* Top Section: Title + Paragraph */}
+              <div className="relative p-4 md:p-6 flex-shrink-0 border-b border-white/10">
+                <motion.h1
+                  className="text-xl md:text-2xl font-bold mb-2 bg-gradient-to-r from-emerald-300 via-cyan-300 to-blue-300 bg-clip-text text-transparent flex items-center gap-2"
+                >
+                  <Zap size={20} className="text-cyan-400" /> TraceAI Protocol Status
+                </motion.h1>
+                <motion.p
+                  className="text-white/70 text-xs md:text-sm"
+                >
+                   Real-time monitoring of core functions.
+                </motion.p>
+              </div>
 
-                  {/* Middle Section: Protocol Status List */}
-                  <div className="flex-grow overflow-y-auto p-4 md:p-6 space-y-2 custom-scrollbar min-h-[30vh]">
-                     {/* Status List rendering remains the same */} 
-                     <motion.div 
-                       initial="hidden"
-                       animate="visible"
-                       variants={{
-                         visible: {
-                           transition: { staggerChildren: 0.07, delayChildren: 0.1 } 
-                         }
-                       }}
-                     > 
-                      {protocolData.map((item, index) => {
-                        const IconComponent = item.icon;
-                        return (
-                          <motion.div
-                             key={item.title}
-                             variants={{ hidden: { opacity: 0, y: 15 }, visible: { opacity: 1, y: 0 } }}
-                             whileHover={{ scale: 1.02, backgroundColor: 'rgba(255,255,255,0.05)', transition: { duration: 0.2 } }}
-                             className="bg-black/40 rounded-md p-2.5 border border-white/10 hover:border-cyan-400/50 transition-colors duration-200 shadow-sm"
-                           >
-                              {/* ... (Content of status item) ... */}
-                              <div className="flex justify-between items-center mb-1.5">
-                                 <h3 className="text-white/90 font-medium text-xs flex items-center gap-1.5 truncate pr-1">
-                                   <IconComponent size={14} className={`text-${item.color}-400 flex-shrink-0`} />
-                                   <span className="truncate">{item.title}</span>
-                                 </h3>
-                                 <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${getStatusColor(item.status)}`}>
-                                   {item.status}
-                                 </span>
-                               </div>
-                               <div className="w-full h-1.5 bg-gradient-to-r from-black/50 to-white/10 rounded-full mb-1 overflow-hidden relative">
-                                  <motion.div /* ... Gradient bar ... */ 
-                                   className={`absolute top-0 left-0 h-full bg-gradient-to-r from-${item.color}-600 via-${item.color}-500 to-${item.color}-400 rounded-full`}
-                                   style={{ width: item.value, transformOrigin: 'left' }}
-                                   initial={{ scaleX: 0 }}
-                                   animate={{ scaleX: 1 }}
-                                   transition={{ delay: 0.2 + index * 0.05, duration: 0.8, ease: "easeOut" }}
-                                  />
-                                   <motion.div /* ... Pulse ... */ 
-                                    className={`absolute top-0 left-0 h-full bg-${item.color}-400 rounded-full`}
-                                    style={{ width: item.value }}
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: [0, 0.5, 0] }}
-                                    transition={{ delay: 0.5 + index * 0.05, duration: 1.5, repeat: Infinity, repeatDelay: 1 }}
-                                   />
-                                </div>
-                                <div className="flex justify-between text-[11px]">
-                                  <span className="text-white/60">{item.desc}</span>
-                                  <motion.span 
-                                    initial={{ opacity: 0 }} 
-                                    animate={{ opacity: 1 }} 
-                                    transition={{ delay: 0.3 + index * 0.05}} 
-                                    className="text-white/90 font-semibold"
-                                   >
-                                    {item.displayValue} 
-                                  </motion.span>
-                                </div>
-                           </motion.div>
-                        );
-                      })}
-                    </motion.div>
-                  </div>
-
-                  {/* Bottom Section: Training Log */}
-                  <div className="flex-shrink-0 border-t border-white/10 overflow-hidden h-[25vh] flex flex-col">
-                      <h3 className="text-white/90 font-semibold p-3 text-sm flex items-center gap-2 bg-black/20 flex-shrink-0 border-b border-white/10">
-                          <ListChecks size={16} className="text-purple-400"/> Training Event Log 
-                      </h3>
-                      {/* Log container */} 
-                      <div ref={logContainerRef} className="flex-grow overflow-y-auto p-3 space-y-1.5 flex flex-col-reverse custom-scrollbar bg-black/30">
-                          {logEntries.map((entry, index) => (
-                              <motion.p 
-                                  key={logEntries.length - index}
-                                  initial={{ opacity: 0, y: -10 }} 
-                                  animate={{ opacity: 1, y: 0 }} 
-                                  transition={{ duration: 0.3 }}
-                                  className="text-[11px] text-white/60 font-mono leading-snug"
+              {/* Middle Section: Protocol Status List */}
+              {/* Adjusted height constraints: Use flex-grow with min-height */}
+              <div className="flex-grow overflow-y-auto p-4 md:p-6 space-y-2 custom-scrollbar min-h-[20vh]">
+                 <motion.div /* Stagger container */
+                   initial="hidden"
+                   animate="visible"
+                   variants={{
+                     visible: {
+                       transition: { staggerChildren: 0.05, delayChildren: 0.1 } // Faster stagger
+                     }
+                   }}
+                 > 
+                  {/* Render using dynamicProtocolData */} 
+                  {dynamicProtocolData.map((item, index) => { 
+                    const IconComponent = item.icon;
+                    return (
+                      <motion.div
+                         key={item.title} // Key should be stable
+                         variants={{ hidden: { opacity: 0, y: 15 }, visible: { opacity: 1, y: 0 } }}
+                         whileHover={{ scale: 1.02, backgroundColor: 'rgba(255,255,255,0.05)', transition: { duration: 0.2 } }}
+                         whileTap={{ scale: 0.98, backgroundColor: 'rgba(0, 255, 255, 0.1)' }} 
+                         onClick={() => handleStatusItemClick(item)} // Added onClick
+                         layout // Enable layout animation for smoother updates if needed
+                         className="bg-black/40 rounded-md p-2.5 border border-white/10 hover:border-cyan-400/50 transition-colors duration-200 shadow-sm cursor-pointer" // Added cursor-pointer
+                       >
+                          <div className="flex justify-between items-center mb-1.5">
+                            <h3 className="text-white/90 font-medium text-xs flex items-center gap-1.5 truncate pr-1">
+                              <IconComponent size={14} className={`text-${item.color}-400 flex-shrink-0`} />
+                              <span className="truncate">{item.title}</span>
+                            </h3>
+                            {/* Animate status change */} 
+                            <motion.span 
+                              key={item.status} // Animate when status changes
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${getStatusColor(item.status)}`}
+                            >
+                              {item.status}
+                            </motion.span>
+                          </div>
+                          <div className="w-full h-1.5 bg-gradient-to-r from-black/50 to-white/10 rounded-full mb-1 overflow-hidden relative">
+                              <motion.div /* ... Gradient bar ... */ 
+                               className={`absolute top-0 left-0 h-full bg-gradient-to-r from-${item.color}-600 via-${item.color}-500 to-${item.color}-400 rounded-full`}
+                               style={{ width: item.value, transformOrigin: 'left' }}
+                               initial={{ scaleX: 0 }}
+                               animate={{ scaleX: 1 }}
+                               transition={{ delay: 0.2 + index * 0.05, duration: 0.8, ease: "easeOut" }}
+                              />
+                               <motion.div /* ... Pulse ... */ 
+                                className={`absolute top-0 left-0 h-full bg-${item.color}-400 rounded-full`}
+                                style={{ width: item.value }}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: [0, 0.5, 0] }}
+                                transition={{ delay: 0.5 + index * 0.05, duration: 1.5, repeat: Infinity, repeatDelay: 1 }}
+                               />
+                            </div>
+                            <div className="flex justify-between text-[11px]">
+                              <span className="text-white/60">{item.desc}</span>
+                              {/* Animate displayValue change */} 
+                              <motion.span 
+                                key={item.displayValue} // Use value as key to trigger animation on change
+                                initial={{ opacity: 0.5, y: 3 }} 
+                                animate={{ opacity: 1, y: 0 }} 
+                                transition={{ duration: 0.3 }}
+                                className="text-white/90 font-semibold"
                               >
-                                 {entry}
-                              </motion.p>
-                          ))}
-                      </div>
-                      {/* Loss Display */} 
-                      <div className="p-2 text-xs font-mono text-emerald-400 flex justify-between items-center bg-black/40 flex-shrink-0 border-t border-white/5">
-                          <span>Current Loss:</span>
-                          <motion.span 
-                            key={currentLoss.toFixed(6)}
-                            initial={{ opacity: 0, y: 5 }} 
-                            animate={{ opacity: 1, y: 0 }} 
-                            transition={{ duration: 0.3}}
+                                {item.displayValue} 
+                              </motion.span>
+                            </div>
+                       </motion.div>
+                    );
+                  })}
+                </motion.div>
+              </div>
+
+              {/* Bottom Section: Training Log */}
+              {/* Adjusted height constraints: Use flex-shrink-0 with a defined height */}
+              <div className="flex-shrink-0 border-t border-white/10 overflow-hidden h-[25vh] max-h-[200px] flex flex-col">
+                  <h3 className="text-white/90 font-semibold p-3 text-sm flex items-center gap-2 bg-black/20 flex-shrink-0 border-b border-white/10">
+                      <ListChecks size={16} className="text-purple-400"/> Training Event Log 
+                  </h3>
+                  {/* Log container */} 
+                  <div ref={logContainerRef} className="flex-grow overflow-y-auto p-3 space-y-1.5 flex flex-col-reverse custom-scrollbar bg-black/30">
+                      {logEntries.map((entry, index) => (
+                          <motion.p 
+                              key={logEntries.length - index}
+                              initial={{ opacity: 0, y: -10 }} 
+                              animate={{ opacity: 1, y: 0 }} 
+                              transition={{ duration: 0.3 }}
+                              className="text-[11px] text-white/60 font-mono leading-snug"
                           >
-                             {currentLoss.toFixed(6)}
-                          </motion.span>
-                      </div>
+                             {entry}
+                          </motion.p>
+                      ))}
                   </div>
+                  {/* Loss Display */} 
+                  <div className="p-2 text-xs font-mono text-emerald-400 flex justify-between items-center bg-black/40 flex-shrink-0 border-t border-white/5">
+                      <span>Current Loss:</span>
+                      <motion.span 
+                        key={currentLoss.toFixed(6)}
+                        initial={{ opacity: 0, y: 5 }} 
+                        animate={{ opacity: 1, y: 0 }} 
+                        transition={{ duration: 0.3}}
+                      >
+                         {currentLoss.toFixed(6)}
+                      </motion.span>
+                  </div>
+              </div>
 
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* Right Panels Removed */}
-        
-      </div> 
-      {/* End Main Grid */} 
-
-      {/* Top Right Controls (Info/Back) - No Change */}
-      <div className="absolute top-4 right-4 md:top-6 md:right-6 flex items-center gap-3 z-30 pointer-events-auto">
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+       
+      {/* Top Right Controls (Info/Back) - Re-positioned slightly */}
+      <div className="absolute top-4 right-4 md:top-6 md:right-6 flex items-center gap-3 z-30">
         <motion.button
           onClick={() => setShowInfo(!showInfo)}
           className="p-2 rounded-full bg-black/40 backdrop-blur-md text-white/70 hover:text-white hover:bg-white/20 transition-all duration-200 border border-white/10 shadow-lg"
