@@ -775,9 +775,16 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
                       selectedLine = coreLines[Math.floor(Math.random() * coreLines.length)];
                       lineType = 'core';
                   } else { // Fallback logic
-                      if (interconnectLines.length > 0) selectedLine = interconnectLines[Math.floor(Math.random() * interconnectLines.length)], lineType = 'interconnect';
-                      else if (peripheralLines.length > 0) selectedLine = peripheralLines[Math.floor(Math.random() * peripheralLines.length)], lineType = 'peripheral';
-                      else if (coreLines.length > 0) selectedLine = coreLines[Math.floor(Math.random() * coreLines.length)], lineType = 'core';
+                      if (interconnectLines.length > 0) {
+                          selectedLine = interconnectLines[Math.floor(Math.random() * interconnectLines.length)];
+                          lineType = 'interconnect';
+                      } else if (peripheralLines.length > 0) {
+                          selectedLine = peripheralLines[Math.floor(Math.random() * peripheralLines.length)];
+                          lineType = 'peripheral';
+                      } else if (coreLines.length > 0) {
+                          selectedLine = coreLines[Math.floor(Math.random() * coreLines.length)];
+                          lineType = 'core';
+                      } // No else needed here, selectedLine will remain null/undefined if all lists are empty
                   }
                   
                   if (selectedLine) {
