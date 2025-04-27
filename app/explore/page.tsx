@@ -437,14 +437,16 @@ export default function ExplorePage() {
         >
           <Info className="w-5 h-5" />
         </motion.button>
-        <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-          <Link href="/" legacyBehavior>
-            <a className="p-2 block rounded-full bg-black/40 backdrop-blur-md text-white/70 hover:text-white hover:bg-white/20 transition-all duration-200 border border-white/10 shadow-lg"
-               aria-label="Go Back">
-              <ArrowLeft className="w-5 h-5" />
-            </a>
-          </Link>
-        </motion.div>
+        <Link href="/">
+          <motion.div 
+            whileHover={{ scale: 1.1 }} 
+            whileTap={{ scale: 0.9 }}
+            className="p-2 block rounded-full bg-black/40 backdrop-blur-md text-white/70 hover:text-white hover:bg-white/20 transition-all duration-200 border border-white/10 shadow-lg cursor-pointer"
+            aria-label="Go Back"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </motion.div>
+        </Link>
       </div>
 
       {/* Footer Info - No Change */}
@@ -452,7 +454,7 @@ export default function ExplorePage() {
         Click & drag to rotate • Scroll to zoom
       </div>
       <div className="absolute bottom-4 right-4 text-white/40 text-xs font-mono z-10 backdrop-blur-sm bg-black/20 px-2 py-1 rounded pointer-events-none">
-        Kodai v1.2.0-dev • Simulating...
+        Kodai v1.2.0-dev • Initialized
       </div>
 
       {/* Custom Scrollbar CSS - No Change */}

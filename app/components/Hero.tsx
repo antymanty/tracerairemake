@@ -117,17 +117,14 @@ export default function Hero() {
       {/* Vanta container */}
       <div className="absolute inset-0 z-[1]" />
       
-      {/* Overlay gradient */}
-      <div className="absolute inset-0 bg-gradient-to-b from-black via-black/50 to-transparent z-[2]" />
-      
       {/* Grain effect */}
-      <div className="absolute inset-0 pointer-events-none z-[5]">
+      <div className="absolute inset-0 pointer-events-none z-[1]">
         <GrainEffect />
       </div>
 
       {/* Social Links in top right */}
       <motion.div 
-        className="absolute top-6 right-6 flex items-center gap-6 z-20"
+        className="absolute top-6 right-6 flex items-center gap-6 z-10"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8, delay: 0.5 }}

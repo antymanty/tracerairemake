@@ -15,16 +15,26 @@ export default function Home() {
   
   // Ensure minimal load time even on fast connections
   useEffect(() => {
-    const minLoadTime = 2000 // minimum 2 seconds loading time
+    const minLoadTime = 200 // Reduced minimum load time to 200ms
     const startTime = Date.now()
     
-    return () => {
-      const elapsedTime = Date.now() - startTime
-      if (elapsedTime < minLoadTime) {
-        console.log('Enforcing minimum load time')
-      }
-    }
-  }, [])
+    // This timeout ensures setLoading(false) doesn't happen *instantly*
+    // giving the loader a moment to appear.
+    const timer = setTimeout(() => {
+         const elapsedTime = Date.now() - startTime
+         if (!loading) { // Check if loading is already false (likely via onLoadingComplete)
+             return;
+         }
+         if (elapsedTime >= minLoadTime) {
+            setLoading(false);
+         } else {
+             // If onLoadingComplete finished early, wait remaining time
+             setTimeout(() => setLoading(false), minLoadTime - elapsedTime);
+         }
+    }, minLoadTime); // Initial check after minLoadTime
+
+    return () => clearTimeout(timer); // Cleanup timeout
+  }, [loading]) // Dependency on loading prevents issues if onLoadingComplete fires first
 
   return (
     <main className="bg-black min-h-screen">

@@ -2,7 +2,6 @@
 
 import { useState, useEffect, memo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import GrainEffect from './GrainEffect'
 
 interface CellsLoaderProps {
   onLoadingComplete: () => void
@@ -12,21 +11,12 @@ interface CellsLoaderProps {
 export default memo(function CellsLoader({ onLoadingComplete }: CellsLoaderProps) {
   const [progress, setProgress] = useState(0)
   const [isComplete, setIsComplete] = useState(false)
-  const [resourcesLoaded, setResourcesLoaded] = useState(false)
 
-  // Check if THREE.js and Vanta resources are available
+  // Handle the progress bar animation
   useEffect(() => {
-    // Skip resource preloading - we'll load on demand instead
-    setResourcesLoaded(true);
-  }, []);
-  
-  // Handle the progress bar animation - optimized
-  useEffect(() => {
-    // Don't start loading progress until resources check is done
-    if (!resourcesLoaded) return;
-    
-    const duration = 2.5 // Reduced from 3 seconds to 2.5
-    const interval = 100 // Less frequent updates (from 50ms to 100ms)
+    // Start loading immediately
+    const duration = 2.5 
+    const interval = 100 
     const steps = duration * 1000 / interval
     const increment = 100 / steps
     let currentProgress = 0
@@ -37,16 +27,15 @@ export default memo(function CellsLoader({ onLoadingComplete }: CellsLoaderProps
         clearInterval(timer)
         currentProgress = 100
         setIsComplete(true)
-        // Shorter delay for transition
         setTimeout(() => {
           onLoadingComplete()
-        }, 500) // Reduced from 800ms
+        }, 500) 
       }
       setProgress(currentProgress)
     }, interval)
 
     return () => clearInterval(timer)
-  }, [onLoadingComplete, resourcesLoaded])
+  }, [onLoadingComplete])
 
   // Use simpler animation for better performance
   return (
@@ -58,11 +47,6 @@ export default memo(function CellsLoader({ onLoadingComplete }: CellsLoaderProps
             exit={{ opacity: 0 }}
             transition={{ duration: 0.5, ease: "easeInOut" }} // Faster transition
           >
-            {/* Grain effect is expensive, use with reduced intensity */}
-            <div className="absolute inset-0 z-0 opacity-50">
-              <GrainEffect />
-            </div>
-            
             {/* Centered Progress Bar with simplified glow */}
             <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 z-10">
               <motion.div

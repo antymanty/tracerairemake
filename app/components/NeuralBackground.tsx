@@ -14,39 +14,47 @@ interface DataParticle {
   endPoint: THREE.Vector3
   progress: number
   speed: number
-  line: THREE.Line
+  direction: 1 | -1
+  life: number
 }
 
-// --- NEW STRUCTURE CONFIGURATION ---
+// --- NEW STRUCTURE CONFIGURATION (Adjusted for Clarity & Signals) ---
 const CORE_CONFIG = {
   position: { x: 0, y: 0, z: 0 },
-  color: '#00ffff', // Bright Cyan
-  nodeCount: 100, // Denser core
-  radius: 100,     // Smaller radius for density
-  connectionDistance: 120, // Connect nodes closer together
-  connectionProbability: 0.4, // Higher connection chance
+  color: '#00ffff', 
+  nodeCount: 70, // Further reduced
+  radius: 120,    // Slightly larger core space
+  connectionDistance: 140, 
+  connectionProbability: 0.25, // Slightly Reduced 
+  nodeSize: 3.0,
 };
 
 const NUM_PERIPHERALS = 6;
 const PERIPHERAL_CONFIG = {
-  distanceFromCore: 400,
-  nodeCount: 25, // Sparser
-  radius: 80,     // Smaller clusters
-  colors: ['#FF66FF', '#FF9933', '#66FF66', '#FFFF66', '#66B2FF', '#FF6666'], // Magenta, Orange, Green, Yellow, Light Blue, Red
-  connectionDistance: 100,
-  connectionProbability: 0.2,
-  coreConnectionProbability: 0.05, // Chance to connect peripheral node to a core node
+  distanceFromCore: 450, 
+  nodeCount: 18, // Further reduced
+  radius: 70,    
+  colors: ['#FF66FF', '#FF9933', '#66FF66', '#FFFF66', '#66B2FF', '#FF6666'],
+  connectionDistance: 90, // Reduced distance
+  connectionProbability: 0.12, // Further reduced
+  coreConnectionProbability: 0.008, // Drastically reduced interconnects
+  nodeSize: 2.0, 
 };
-// --- END NEW STRUCTURE CONFIGURATION ---
+// --- END ADJUSTED CONFIGURATION ---
+
+// Define line types
+type LineInfo = {
+  lineSegments: THREE.LineSegments;
+  type: 'core' | 'peripheral' | 'interconnect';
+  color?: string | number; // Store color for particle matching
+}
 
 export default function NeuralBackground({ children }: NeuralBackgroundProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null)
-  const coreNodesRef = useRef<THREE.Points | null>(null); // Ref for core nodes
-  const peripheralNodesRefs = useRef<THREE.Points[]>([]); // Array for peripheral nodes
-  const coreLinesRef = useRef<THREE.LineSegments | null>(null); // Ref for core lines
-  const peripheralLinesRefs = useRef<THREE.LineSegments[]>([]); // Array for peripheral lines
-  const corePeripheralLinesRef = useRef<THREE.LineSegments | null>(null); // Ref for core-peripheral lines
+  const coreNodeMeshesRef = useRef<THREE.Mesh[]>([])
+  const peripheralNodeMeshesRef = useRef<THREE.Mesh[][]>([[]])
+  const allLinesRef = useRef<LineInfo[]>([])
   const dataParticlesRef = useRef<DataParticle[]>([])
   const sceneRef = useRef<THREE.Scene | null>(null)
   const starsRef = useRef<THREE.Points | null>(null)
@@ -54,104 +62,128 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
   const previousMousePositionRef = useRef({ x: 0, y: 0 })
   const rotationRef = useRef({ x: 0, y: 0 })
   const frameRef = useRef<number>(0)
-  const groupRef = useRef<THREE.Group | null>(null); // Group to hold network elements for easier rotation
+  const groupRef = useRef<THREE.Group | null>(null)
 
   // Memoize createDataParticle for better performance
-  const createDataParticle = useCallback((line: THREE.Line, color: string, isInterCluster: boolean = false, scene: THREE.Scene) => {
-    // Even smaller particles for better performance
-    const geometry = new THREE.SphereGeometry(isInterCluster ? 0.3 : 0.7, 6, 6) // Reduced geometry detail
+  const createDataParticle = useCallback((line: THREE.Line, color: string | number, scene: THREE.Scene, lineType: LineInfo['type']) => {
+    const particleSize = lineType === 'interconnect' ? 1.8 : 1.2;
+    const geometry = new THREE.SphereGeometry(particleSize, 8, 8); 
     const material = new THREE.MeshBasicMaterial({
       color: new THREE.Color(color),
       transparent: true,
-      opacity: 0.8,
-      blending: THREE.AdditiveBlending
-    })
-    const mesh = new THREE.Mesh(geometry, material)
+      opacity: 1.0, 
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    const mesh = new THREE.Mesh(geometry, material);
 
-    // Get start and end points from line geometry
-    const positions = line.geometry.attributes.position.array
-    const startPoint = new THREE.Vector3(positions[0], positions[1], positions[2])
-    const endPoint = new THREE.Vector3(positions[3], positions[4], positions[5])
+    const positions = line.geometry.attributes.position.array;
+    // Determine initial direction: Start from core for interconnects? Or random?
+    // Let's make interconnects randomly start from either end.
+    let startPoint: THREE.Vector3;
+    let endPoint: THREE.Vector3;
+    let initialDirection: 1 | -1 = 1;
+    let initialProgress = 0;
 
-    // Simplified glow effect
-    const glowGeometry = new THREE.SphereGeometry(isInterCluster ? 1 : 2, 8, 8) // Reduced complexity
-    const glowMaterial = new THREE.MeshBasicMaterial({
-      color: new THREE.Color(color),
-      transparent: true,
-      opacity: 0.3, // Reduced opacity
-      blending: THREE.AdditiveBlending
-    })
-    const glow = new THREE.Mesh(glowGeometry, glowMaterial)
-    mesh.add(glow)
+    if (lineType === 'interconnect' && Math.random() > 0.5) {
+        // Start from peripheral end, move towards core
+        startPoint = new THREE.Vector3(positions[3], positions[4], positions[5]);
+        endPoint = new THREE.Vector3(positions[0], positions[1], positions[2]);
+        // If we start at the 'end', progress is technically 1, moving backwards
+        // initialProgress = 1;
+        // initialDirection = -1; 
+        // --> Simpler: Just swap points and keep progress 0, direction 1
+    } else {
+        // Start from core (or first point for other types)
+        startPoint = new THREE.Vector3(positions[0], positions[1], positions[2]);
+        endPoint = new THREE.Vector3(positions[3], positions[4], positions[5]);
+    }
 
-    scene.add(mesh)
+    mesh.position.copy(startPoint);
+    scene.add(mesh);
+
+    let speedFactor = 1.0;
+    if (lineType === 'core') speedFactor = 1.2; // Slightly slower core internal
+    if (lineType === 'interconnect') speedFactor = 2.0; // Faster interconnects
 
     return {
       mesh,
       startPoint,
       endPoint,
-      progress: 0,
-      speed: isInterCluster ? 0.03 + Math.random() * 0.01 : 0.01 + Math.random() * 0.01, // Less variation
-      line
-    }
-  }, [])
+      progress: initialProgress,
+      speed: (0.03 + Math.random() * 0.02) * speedFactor, // Adjusted base speed
+      direction: initialDirection,
+      life: 2 + Math.floor(Math.random() * 3), // Particle lasts for 2-4 full traversals (back and forth = 1 traversal)
+    };
+  }, []);
 
   useEffect(() => {
-    if (!containerRef.current) return
-
-    const container = containerRef.current
+    if (!containerRef.current) return;
+    const container = containerRef.current;
     
-    let camera: THREE.PerspectiveCamera
-    let scene: THREE.Scene
-    let targetZ = 1000
+    let camera: THREE.PerspectiveCamera;
+    let scene: THREE.Scene;
+    let targetZ = 1000;
+    let lastMoveTime = 0; 
+    const moveThrottle = 16; 
+    let resizeTimeout: number | null = null; 
+    let particleTimeout: NodeJS.Timeout | null = null; 
 
-    // Throttled window event handlers for better performance
     const onMouseDown = (event: MouseEvent) => {
-      isDraggingRef.current = true
-      previousMousePositionRef.current = {
-        x: event.clientX,
-        y: event.clientY
-      }
-    }
+      isDraggingRef.current = true;
+      previousMousePositionRef.current = { x: event.clientX, y: event.clientY };
+      container.style.cursor = 'grabbing'; // Simple grab cursor
+    };
 
-    let lastMoveTime = 0
-    const moveThrottle = 16 // ~60fps
-    
     const onMouseMove = (event: MouseEvent) => {
-      const now = Date.now()
-      if (isDraggingRef.current && now - lastMoveTime > moveThrottle) {
-        lastMoveTime = now
-        const deltaMove = {
-          x: event.clientX - previousMousePositionRef.current.x,
-          y: event.clientY - previousMousePositionRef.current.y
-        }
+       if (!isDraggingRef.current) return;
+       const now = Date.now();
+       if (now - lastMoveTime < moveThrottle) return; 
+       lastMoveTime = now;
 
-        rotationRef.current.x += deltaMove.y * 0.005
-        rotationRef.current.y += deltaMove.x * 0.005
+       const deltaMove = { x: event.clientX - previousMousePositionRef.current.x, y: event.clientY - previousMousePositionRef.current.y };
 
-        previousMousePositionRef.current = {
-          x: event.clientX,
-          y: event.clientY
-        }
-      }
-    }
+       // Only rotation logic remains
+       rotationRef.current.x += deltaMove.y * 0.005;
+       rotationRef.current.y += deltaMove.x * 0.005;
+       rotationRef.current.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, rotationRef.current.x)); // Clamp rotation
+
+       previousMousePositionRef.current = { x: event.clientX, y: event.clientY };
+    };
 
     const onMouseUp = () => {
-      isDraggingRef.current = false
-    }
+      isDraggingRef.current = false;
+      container.style.cursor = 'default'; // Restore default cursor
+    };
+    
+    const onWheel = (event: WheelEvent) => {
+        const now = Date.now();
+        // Basic throttling for wheel zoom
+        if (now - lastMoveTime > 50) { // Shorter throttle for zoom?
+          lastMoveTime = now;
+          // Simple targetZ adjustment
+          targetZ = Math.max(400, Math.min(2500, targetZ + event.deltaY * 0.5)); // Adjusted sensitivity
+        }
+    };
+    
+    const onWindowResize = () => {
+        if (resizeTimeout) window.clearTimeout(resizeTimeout);
+        resizeTimeout = window.setTimeout(() => {
+          if (!containerRef.current || !camera || !rendererRef.current) return;
+          camera.aspect = window.innerWidth / window.innerHeight;
+          camera.updateProjectionMatrix();
+          rendererRef.current.setSize(window.innerWidth, window.innerHeight);
+        }, 150);
+    };
 
-    // Add mouse event listeners
-    window.addEventListener('mousedown', onMouseDown)
-    window.addEventListener('mousemove', onMouseMove)
-    window.addEventListener('mouseup', onMouseUp)
-
+    // --- Init Function ---
     const init = () => {
       while (container.firstChild) {
         container.removeChild(container.firstChild)
       }
 
       camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 5000)
-      camera.position.z = 1000
+      camera.position.z = targetZ
       scene = new THREE.Scene()
       scene.fog = new THREE.FogExp2(0x000000, 0.0003)
       sceneRef.current = scene
@@ -216,96 +248,95 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
       circuit.position.y = -300 // Position it further down
       groupRef.current?.add(circuit) // Add to group
 
-      // --- Generate Nodes Function ---
-      const generateNodes = (count: number, center: THREE.Vector3, radius: number, colorVal: string | number): [Float32Array, Float32Array] => {
-        const positions = new Float32Array(count * 3);
-        const colors = new Float32Array(count * 3);
-        const color = new THREE.Color(colorVal);
-
+      // --- Generate Nodes Function (MODIFIED to return Meshes) ---
+      const generateNodeMeshes = (count: number, center: THREE.Vector3, radius: number, baseColorVal: string | number, nodeSize: number): THREE.Mesh[] => {
+        const meshes: THREE.Mesh[] = [];
+        const baseColor = new THREE.Color(baseColorVal);
+        
         for (let i = 0; i < count; i++) {
-          // Spherical distribution within the radius
-          const r = radius * Math.cbrt(Math.random()); // Cube root for uniform volume distribution
+          // Spherical distribution 
+          const r = radius * Math.cbrt(Math.random()); 
           const theta = Math.random() * Math.PI * 2;
           const phi = Math.acos((Math.random() * 2) - 1);
+          const position = new THREE.Vector3(
+            center.x + r * Math.sin(phi) * Math.cos(theta),
+            center.y + r * Math.sin(phi) * Math.sin(theta),
+            center.z + r * Math.cos(phi)
+          );
 
-          const x = center.x + r * Math.sin(phi) * Math.cos(theta);
-          const y = center.y + r * Math.sin(phi) * Math.sin(theta);
-          const z = center.z + r * Math.cos(phi);
+          // Create geometry (unique for potential size variation)
+          const finalNodeSize = nodeSize * (0.8 + Math.random() * 0.4); // Size variation
+          const geometry = new THREE.SphereGeometry(finalNodeSize / 2, 8, 6); // Simple sphere
 
-          positions[i * 3] = x;
-          positions[i * 3 + 1] = y;
-          positions[i * 3 + 2] = z;
-
-          // Add slight color variation
+          // Create material (slightly varied color)
+          const nodeColor = baseColor.clone();
           const hsl = { h: 0, s: 0, l: 0 };
-          color.getHSL(hsl);
-          color.setHSL(hsl.h, hsl.s, hsl.l * (0.8 + Math.random() * 0.4));
+          nodeColor.getHSL(hsl);
+          nodeColor.setHSL(hsl.h, hsl.s, hsl.l * (0.9 + Math.random() * 0.2));
 
-          colors[i * 3] = color.r;
-          colors[i * 3 + 1] = color.g;
-          colors[i * 3 + 2] = color.b;
+          const material = new THREE.MeshBasicMaterial({
+            color: nodeColor,
+            transparent: true,
+            opacity: 0.9,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            // side: THREE.DoubleSide // Might help if inside looks odd
+          });
+
+          const mesh = new THREE.Mesh(geometry, material);
+          mesh.position.copy(position);
+          meshes.push(mesh);
         }
-        return [positions, colors];
+        return meshes;
       };
 
-      // --- Generate Lines Function ---
-      const generateLines = (positions: Float32Array, maxDistance: number, probability: number): Float32Array => {
+      // --- Generate Lines Function (MODIFIED to use Meshes) ---
+      const generateLinesFromMeshes = (nodes1: THREE.Mesh[], nodes2: THREE.Mesh[], maxDistance: number, probability: number): Float32Array => {
           const lines: number[] = [];
-          const numPoints = positions.length / 3;
-          for (let i = 0; i < numPoints; i++) {
-            for (let j = i + 1; j < numPoints; j++) {
-                 if (Math.random() > probability) continue; // Skip based on probability
+          const singleGroup = nodes1 === nodes2;
 
-                const dx = positions[i * 3] - positions[j * 3];
-                const dy = positions[i * 3 + 1] - positions[j * 3 + 1];
-                const dz = positions[i * 3 + 2] - positions[j * 3 + 2];
-                const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+          for (let i = 0; i < nodes1.length; i++) {
+            // If single group, start j from i+1 to avoid self-connections and duplicates
+            // If two groups, start j from 0
+            const startJ = singleGroup ? i + 1 : 0; 
+            for (let j = startJ; j < nodes2.length; j++) {
+                 if (Math.random() > probability) continue;
 
-                if (distance < maxDistance) {
-                    lines.push(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]);
-                    lines.push(positions[j * 3], positions[j * 3 + 1], positions[j * 3 + 2]);
+                 const p1 = nodes1[i].position;
+                 const p2 = nodes2[j].position;
+                 const distance = p1.distanceTo(p2);
+
+                 if (distance < maxDistance) {
+                    lines.push(p1.x, p1.y, p1.z);
+                    lines.push(p2.x, p2.y, p2.z);
                 }
             }
           }
           return new Float32Array(lines);
       };
       
-      // --- Create Core Nodes ---
+      // --- Create Core Nodes (as Meshes) ---
       const coreCenter = new THREE.Vector3(CORE_CONFIG.position.x, CORE_CONFIG.position.y, CORE_CONFIG.position.z);
-      const [coreNodePositions, coreNodeColors] = generateNodes(CORE_CONFIG.nodeCount, coreCenter, CORE_CONFIG.radius, CORE_CONFIG.color);
-      const coreGeometry = new THREE.BufferGeometry();
-      coreGeometry.setAttribute('position', new THREE.BufferAttribute(coreNodePositions, 3));
-      coreGeometry.setAttribute('color', new THREE.BufferAttribute(coreNodeColors, 3));
-      const coreMaterial = new THREE.PointsMaterial({
-        size: 3.5, // Slightly larger core nodes
-        vertexColors: true,
-        transparent: true,
-        opacity: 0.9,
-        blending: THREE.AdditiveBlending,
-        sizeAttenuation: true,
-        depthWrite: false,
-      });
-      coreNodesRef.current = new THREE.Points(coreGeometry, coreMaterial);
-      groupRef.current?.add(coreNodesRef.current);
+      coreNodeMeshesRef.current = generateNodeMeshes(CORE_CONFIG.nodeCount, coreCenter, CORE_CONFIG.radius, CORE_CONFIG.color, CORE_CONFIG.nodeSize);
+      coreNodeMeshesRef.current.forEach(mesh => groupRef.current?.add(mesh));
 
-      // --- Create Core Lines ---
-      const coreLinePositions = generateLines(coreNodePositions, CORE_CONFIG.connectionDistance, CORE_CONFIG.connectionProbability);
+      // --- Create Core Lines (using Meshes) ---
+      const coreLinePositions = generateLinesFromMeshes(coreNodeMeshesRef.current, coreNodeMeshesRef.current, CORE_CONFIG.connectionDistance, CORE_CONFIG.connectionProbability);
       const coreLineGeometry = new THREE.BufferGeometry();
       coreLineGeometry.setAttribute('position', new THREE.BufferAttribute(coreLinePositions, 3));
       const coreLineMaterial = new THREE.LineBasicMaterial({ 
           color: CORE_CONFIG.color, 
           transparent: true, 
-          opacity: 0.15, // Slightly more visible core lines
+          opacity: 0.3, // Slightly increased opacity
           blending: THREE.AdditiveBlending 
       });
-      // Use LineSegments for performance with many lines
-      coreLinesRef.current = new THREE.LineSegments(coreLineGeometry, coreLineMaterial);
-      groupRef.current?.add(coreLinesRef.current);
-      
-      // --- Create Peripheral Nodes & Lines ---
-      const allPeripheralPositions: number[] = []; // Store all for core connections
-      peripheralNodesRefs.current = [];
-      peripheralLinesRefs.current = [];
+      const coreLineSegments = new THREE.LineSegments(coreLineGeometry, coreLineMaterial);
+      groupRef.current?.add(coreLineSegments);
+      allLinesRef.current.push({ lineSegments: coreLineSegments, type: 'core', color: CORE_CONFIG.color });
+
+      // --- Create Peripheral Nodes & Lines (Adjusted Opacity) ---
+      const allPeripheralNodeMeshes: THREE.Mesh[] = [];
+      peripheralNodeMeshesRef.current = []; // Ensure it's reset
 
       for (let i = 0; i < NUM_PERIPHERALS; i++) {
         // Calculate peripheral position spherically around core
@@ -317,59 +348,41 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
           coreCenter.z + PERIPHERAL_CONFIG.distanceFromCore * Math.sin(anglePhi) * Math.sin(angleTheta)
         );
         const periColor = PERIPHERAL_CONFIG.colors[i % PERIPHERAL_CONFIG.colors.length];
-
-        // Generate Peripheral Nodes
-        const [periNodePositions, periNodeColors] = generateNodes(PERIPHERAL_CONFIG.nodeCount, periCenter, PERIPHERAL_CONFIG.radius, periColor);
-        allPeripheralPositions.push(...Array.from(periNodePositions));
-        const periGeometry = new THREE.BufferGeometry();
-        periGeometry.setAttribute('position', new THREE.BufferAttribute(periNodePositions, 3));
-        periGeometry.setAttribute('color', new THREE.BufferAttribute(periNodeColors, 3));
-        const periMaterial = new THREE.PointsMaterial({ 
-            size: 2.5, // Smaller peripheral nodes
-            vertexColors: true, 
-            transparent: true, 
-            opacity: 0.8, 
-            blending: THREE.AdditiveBlending, 
-            sizeAttenuation: true,
-            depthWrite: false,
-        });
-        const peripheralNodes = new THREE.Points(periGeometry, periMaterial);
-        groupRef.current?.add(peripheralNodes);
-        peripheralNodesRefs.current.push(peripheralNodes);
+        // Generate Peripheral Node Meshes
+        const currentPeripheralMeshes = generateNodeMeshes(PERIPHERAL_CONFIG.nodeCount, periCenter, PERIPHERAL_CONFIG.radius, periColor, PERIPHERAL_CONFIG.nodeSize);
+        currentPeripheralMeshes.forEach(mesh => groupRef.current?.add(mesh));
+        peripheralNodeMeshesRef.current.push(currentPeripheralMeshes); // Store array of meshes
+        allPeripheralNodeMeshes.push(...currentPeripheralMeshes);
 
         // Generate Peripheral Lines (within the cluster)
-        const periLinePositions = generateLines(periNodePositions, PERIPHERAL_CONFIG.connectionDistance, PERIPHERAL_CONFIG.connectionProbability);
+        const periLinePositions = generateLinesFromMeshes(currentPeripheralMeshes, currentPeripheralMeshes, PERIPHERAL_CONFIG.connectionDistance, PERIPHERAL_CONFIG.connectionProbability);
         const periLineGeometry = new THREE.BufferGeometry();
         periLineGeometry.setAttribute('position', new THREE.BufferAttribute(periLinePositions, 3));
-        const periLineMaterial = new THREE.LineBasicMaterial({ color: periColor, transparent: true, opacity: 0.1, blending: THREE.AdditiveBlending });
-        const peripheralLines = new THREE.LineSegments(periLineGeometry, periLineMaterial);
-        groupRef.current?.add(peripheralLines);
-        peripheralLinesRefs.current.push(peripheralLines);
+        const periLineMaterial = new THREE.LineBasicMaterial({ 
+            color: periColor, 
+            transparent: true, 
+            opacity: 0.2, // Slightly increased opacity
+            blending: THREE.AdditiveBlending 
+        });
+        const peripheralLineSegments = new THREE.LineSegments(periLineGeometry, periLineMaterial);
+        groupRef.current?.add(peripheralLineSegments);
+        allLinesRef.current.push({ lineSegments: peripheralLineSegments, type: 'peripheral', color: periColor });
       }
 
-      // --- Create Core-Peripheral Lines ---
-      const corePeripheralLinePoints: number[] = [];
-      const numCoreNodes = coreNodePositions.length / 3;
-      const numPeriNodes = allPeripheralPositions.length / 3;
-      for(let i = 0; i < numCoreNodes; i++) {
-          for(let j = 0; j < numPeriNodes; j++) {
-              if (Math.random() < PERIPHERAL_CONFIG.coreConnectionProbability) {
-                  // Add line segment
-                  corePeripheralLinePoints.push(coreNodePositions[i * 3], coreNodePositions[i * 3 + 1], coreNodePositions[i * 3 + 2]);
-                  corePeripheralLinePoints.push(allPeripheralPositions[j * 3], allPeripheralPositions[j * 3 + 1], allPeripheralPositions[j * 3 + 2]);
-              }
-          }
-      }
-       const cpLineGeometry = new THREE.BufferGeometry();
-       cpLineGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(corePeripheralLinePoints), 3));
-       const cpLineMaterial = new THREE.LineBasicMaterial({ 
-           color: 0xaaaaaa, // Neutral color for these connections
+      // --- Create Core-Peripheral Lines (using Meshes) ---
+      const corePeripheralLinePoints = generateLinesFromMeshes(coreNodeMeshesRef.current, allPeripheralNodeMeshes, PERIPHERAL_CONFIG.distanceFromCore * 1.1, PERIPHERAL_CONFIG.coreConnectionProbability); 
+      const cpLineGeometry = new THREE.BufferGeometry(); // Declare here
+      // Use the declared variable below
+      cpLineGeometry.setAttribute('position', new THREE.BufferAttribute(corePeripheralLinePoints, 3)); 
+      const cpLineMaterial = new THREE.LineBasicMaterial({ 
+           color: 0xaaaaaa, 
            transparent: true, 
-           opacity: 0.05, // Very faint
+           opacity: 0.05, 
            blending: THREE.AdditiveBlending 
        });
-       corePeripheralLinesRef.current = new THREE.LineSegments(cpLineGeometry, cpLineMaterial);
-       groupRef.current?.add(corePeripheralLinesRef.current);
+       const cpLineSegments = new THREE.LineSegments(cpLineGeometry, cpLineMaterial);
+       groupRef.current?.add(cpLineSegments);
+       allLinesRef.current.push({ lineSegments: cpLineSegments, type: 'interconnect', color: 0xaaaaaa });
 
       rendererRef.current = new THREE.WebGLRenderer({ 
         alpha: true,
@@ -388,63 +401,126 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
       
       container.appendChild(canvas)
 
-      // Throttled wheel event
-      let lastWheelTime = 0
-      const wheelThrottle = 100 // ms
-      const onWheel = (event: WheelEvent) => {
-        const now = Date.now()
-        if (now - lastWheelTime > wheelThrottle) {
-          lastWheelTime = now
-          targetZ = Math.max(500, Math.min(2000, targetZ + event.deltaY))
-        }
-      }
-
-      window.addEventListener('wheel', onWheel)
-      
-      // Debounced resize handler
-      let resizeTimeout: number | null = null
-      const onWindowResize = () => {
-        if (resizeTimeout) {
-          window.clearTimeout(resizeTimeout)
-        }
-        
-        resizeTimeout = window.setTimeout(() => {
-          if (!containerRef.current) return
-
-          camera.aspect = window.innerWidth / window.innerHeight
-          camera.updateProjectionMatrix()
-
-          rendererRef.current?.setSize(window.innerWidth, window.innerHeight)
-        }, 100)
-      }
-
-      window.addEventListener('resize', onWindowResize)
-
       // Initialize data particles (fewer particles)
-      const initDataParticles = () => {
-        // TODO: Revise this logic. Need to select lines from core, peripheral, and core-peripheral groups.
-        // For now, disable particle generation until revised.
-        dataParticlesRef.current.forEach(particle => scene.remove(particle.mesh))
-        dataParticlesRef.current = [];
-      }
-      initDataParticles();
+      const initDataParticles = (count: number) => {
+         dataParticlesRef.current.forEach(particle => scene.remove(particle.mesh));
+         dataParticlesRef.current = [];
+         let createdCount = 0;
+         const interconnectLines = allLinesRef.current.filter(l => l.type === 'interconnect');
+         const coreLines = allLinesRef.current.filter(l => l.type === 'core');
+         
+         while (createdCount < count && (interconnectLines.length > 0 || coreLines.length > 0)) {
+             // Prioritize interconnect lines
+             let lineInfo: LineInfo | undefined;
+             if (interconnectLines.length > 0 && Math.random() < 0.8) { // 80% chance for interconnect
+                lineInfo = interconnectLines[Math.floor(Math.random() * interconnectLines.length)];
+             } else if (coreLines.length > 0) { // 20% chance for core
+                 lineInfo = coreLines[Math.floor(Math.random() * coreLines.length)];
+             }
+             if (!lineInfo) continue;
 
-      return null; // Return null as interval is disabled for now
+             // ... (rest of segment picking logic from previous step) ...
+             const geometry = lineInfo.lineSegments.geometry;
+             const positions = geometry.attributes.position.array;
+             const numSegments = positions.length / 6;
+             if (numSegments === 0) continue;
+             const segmentIndex = Math.floor(Math.random() * numSegments);
+             const startIndex = segmentIndex * 6;
+             const segmentPoints = [
+                 new THREE.Vector3(positions[startIndex], positions[startIndex+1], positions[startIndex+2]),
+                 new THREE.Vector3(positions[startIndex+3], positions[startIndex+4], positions[startIndex+5])
+             ];
+             const segmentGeometry = new THREE.BufferGeometry().setFromPoints(segmentPoints);
+             const tempLine = new THREE.Line(segmentGeometry, new THREE.LineBasicMaterial()); 
+
+             const particle = createDataParticle(
+                 tempLine, 
+                 lineInfo.color || 0xffffff, 
+                 scene,
+                 lineInfo.type // Pass line type
+             );
+             dataParticlesRef.current.push(particle);
+             createdCount++;
+             segmentGeometry.dispose(); 
+         }
+      };
+      initDataParticles(20); // Initial particles
+
+      // --- Periodically Create New Particles (Focus on Interconnect) ---
+      let particleTimeout: NodeJS.Timeout | null = null;
+      const scheduleNextParticle = () => {
+          if (particleTimeout) clearTimeout(particleTimeout);
+          particleTimeout = setTimeout(() => {
+              if (dataParticlesRef.current.length < 30 && sceneRef.current) { // Lower max
+                 // Prioritize interconnect lines for spawning
+                 let lineInfo: LineInfo | undefined;
+                 const interconnectLines = allLinesRef.current.filter(l => l.type === 'interconnect');
+                 const coreLines = allLinesRef.current.filter(l => l.type === 'core');
+
+                 if (interconnectLines.length > 0 && Math.random() < 0.9) { // 90% chance interconnect
+                     lineInfo = interconnectLines[Math.floor(Math.random() * interconnectLines.length)];
+                 } else if (coreLines.length > 0) { // 10% chance core
+                     lineInfo = coreLines[Math.floor(Math.random() * coreLines.length)];
+                 }
+                 
+                 if (lineInfo) {
+                    // ... (segment picking and particle creation logic - same as init) ...
+                    const geometry = lineInfo.lineSegments.geometry;
+                    const positions = geometry.attributes.position.array;
+                    const numSegments = positions.length / 6;
+                    if (numSegments > 0) {
+                       const segmentIndex = Math.floor(Math.random() * numSegments);
+                       const startIndex = segmentIndex * 6;
+                       const segmentPoints = [ new THREE.Vector3(positions[startIndex], positions[startIndex+1], positions[startIndex+2]), new THREE.Vector3(positions[startIndex+3], positions[startIndex+4], positions[startIndex+5]) ];
+                       const segmentGeometry = new THREE.BufferGeometry().setFromPoints(segmentPoints);
+                       const tempLine = new THREE.Line(segmentGeometry, new THREE.LineBasicMaterial());
+                       const particle = createDataParticle(tempLine, lineInfo.color || 0xffffff, sceneRef.current, lineInfo.type);
+                       dataParticlesRef.current.push(particle);
+                       segmentGeometry.dispose();
+                    }
+                 }
+              }
+              scheduleNextParticle(); 
+          }, 200 + Math.random() * 500); // Spawn rate
+      };
+      scheduleNextParticle(); 
+      
+      const cleanupFunc = () => {
+          if (particleTimeout) clearTimeout(particleTimeout);
+      };
+      return cleanupFunc; 
     }
 
-    init(); // Run init but don't capture interval yet
+    const cleanupParticles = init();
 
+    // --- Animate Function (Updated Particle Logic) ---
     const animate = () => {
-      if (!rendererRef.current || !sceneRef.current) return;
-
-      // Apply rotation from dragging TO THE GROUP
+      if (!rendererRef.current || !sceneRef.current || !camera) return; 
+      
+      // Apply smooth rotation to the group
       if (groupRef.current) {
-          // Apply smooth rotation damping
           const targetRotationX = rotationRef.current.x;
           const targetRotationY = rotationRef.current.y;
           groupRef.current.rotation.x += (targetRotationX - groupRef.current.rotation.x) * 0.1;
           groupRef.current.rotation.y += (targetRotationY - groupRef.current.rotation.y) * 0.1;
       }
+      
+      // Apply smooth zoom (Original Logic)
+      camera.position.z += (targetZ - camera.position.z) * 0.05; 
+      // Removed panning logic and camera.lookAt
+
+      // --- Node Pulsing Animation (Subtler) ---
+      const time = Date.now() * 0.001;
+      const pulseFactor = 0.1; // Reduced intensity
+      const pulseSpeed = 1.2; // Slightly slower 
+      coreNodeMeshesRef.current.forEach((mesh, index) => {
+          const scale = 1.0 + Math.sin(time * pulseSpeed + index * 0.5) * pulseFactor;
+          mesh.scale.set(scale, scale, scale);
+      });
+      peripheralNodeMeshesRef.current.flat().forEach((mesh, index) => { 
+          const scale = 1.0 + Math.sin(time * pulseSpeed * 0.8 + index * 0.8) * pulseFactor * 0.7;
+          mesh.scale.set(scale, scale, scale);
+      });
       
       // Subtle rotation for the starfield (separate from group)
       if (starsRef.current) {
@@ -452,18 +528,64 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
         starsRef.current.rotation.x += 0.00002;
       }
       
+      // --- Update Data Particles (Bi-directional) ---
+      const particlesToRemove: number[] = [];
+      dataParticlesRef.current.forEach((particle, index) => {
+        // Update progress based on direction
+        particle.progress += particle.speed * particle.direction;
+
+        // Check boundaries and reverse direction or decrease life
+        if (particle.progress >= 1) {
+          particle.progress = 1; // Clamp
+          particle.direction = -1; // Reverse
+          particle.life -= 0.5; // Decrement life after reaching end
+        } else if (particle.progress <= 0) {
+          particle.progress = 0; // Clamp
+          particle.direction = 1; // Reverse
+          particle.life -= 0.5; // Decrement life after reaching start
+        }
+
+        // Remove particle if life runs out
+        if (particle.life <= 0) {
+          sceneRef.current?.remove(particle.mesh);
+          particle.mesh.geometry.dispose();
+          (particle.mesh.material as THREE.Material).dispose();
+          particlesToRemove.push(index);
+        } else {
+          // Interpolate position along the segment
+          particle.mesh.position.lerpVectors(particle.startPoint, particle.endPoint, particle.progress);
+        }
+      });
+      
+      // Remove particles marked for removal (iterate backwards)
+      for (let i = particlesToRemove.length - 1; i >= 0; i--) {
+          dataParticlesRef.current.splice(particlesToRemove[i], 1);
+      }
+      
       frameRef.current++;
-      camera.position.z += (targetZ - camera.position.z) * 0.05;
       rendererRef.current.render(scene, camera);
     }
 
+    // Add Original Event Listeners 
+    container.addEventListener('mousedown', onMouseDown);
+    window.addEventListener('mousemove', onMouseMove); // Keep on window for better drag capture
+    window.addEventListener('mouseup', onMouseUp);     // Keep on window
+    container.addEventListener('wheel', onWheel, { passive: true });
+    window.addEventListener('resize', onWindowResize);
+
     gsap.ticker.add(animate);
 
+    // --- Return Cleanup Function ---
     return () => {
       gsap.ticker.remove(animate);
-      window.removeEventListener('mousedown', onMouseDown)
-      window.removeEventListener('mousemove', onMouseMove)
-      window.removeEventListener('mouseup', onMouseUp)
+      // Remove Original Event Listeners
+      container.removeEventListener('mousedown', onMouseDown);
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+      container.removeEventListener('wheel', onWheel);
+      window.removeEventListener('resize', onWindowResize);
+      
+      cleanupParticles?.();
       
       const currentRenderer = rendererRef.current;
       const currentScene = sceneRef.current;
@@ -497,13 +619,12 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
       currentScene?.remove(starsRef.current as THREE.Points);
       starsRef.current = null;
 
-      // Clear remaining refs
-      coreNodesRef.current = null;
-      peripheralNodesRefs.current = [];
-      coreLinesRef.current = null;
-      peripheralLinesRefs.current = [];
-      corePeripheralLinesRef.current = null;
+      // Clear mesh refs
+      coreNodeMeshesRef.current = [];
+      peripheralNodeMeshesRef.current = [];
+      allLinesRef.current = []; 
       dataParticlesRef.current = [];
+      sceneRef.current = null;
       
       if (currentRenderer) {
         currentRenderer.dispose();
@@ -522,7 +643,7 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
   }, [createDataParticle]) // createDataParticle might need update if args change
 
   return (
-    <div ref={containerRef} className="fixed inset-0 z-0">
+    <div ref={containerRef} className="fixed inset-0 z-0" style={{ cursor: 'default' }}>
       {children}
     </div>
   )
