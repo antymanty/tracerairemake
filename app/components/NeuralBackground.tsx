@@ -67,23 +67,41 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
   const flashCooldown = 3000; // Minimum ms between flashes
   const flashChance = 0.005; // Chance per frame to initiate a flash
 
-  // MODIFIED createDataParticle: Simplified, no interconnect color logic needed
+  // MODIFIED createDataParticle: Re-introduce source/destination color logic
   const createDataParticle = useCallback((
     lineSegment: [THREE.Vector3, THREE.Vector3],
     color: string | number,
-    lineType: LineInfo['type']
-    // Removed sourceColor and destinationColor parameters
+    lineType: LineInfo['type'],
+    sourceColor: string | number, // Parameter restored
+    destinationColor: string | number // Parameter restored
   ) => {
     // Use the same design as nodes but slightly smaller (80% of node size)
-    const nodeSize = lineType === 'peripheral' ? // Check peripheral first
+    const nodeSize = lineType === 'interconnect' ? 
                      PERIPHERAL_CONFIG.nodeSize * 0.8 :
                      CORE_CONFIG.nodeSize * 0.8;
     
     // Create geometry the same as nodes
     const geometry = new THREE.SphereGeometry(nodeSize / 2, 8, 6);
     
-    // Use the provided line color directly
-    const nodeColor = new THREE.Color(color);
+    // Determine color based on source/destination
+    let nodeColor: THREE.Color;
+    
+    if (lineType === 'interconnect') {
+      // For interconnects, use the peripheral color (non-core color)
+      const coreColorStr = new THREE.Color(CORE_CONFIG.color).getHexString();
+      const sourceColorStr = new THREE.Color(sourceColor).getHexString();
+      
+      if (sourceColorStr === coreColorStr) {
+        // If source is core, use destination color (peripheral)
+        nodeColor = new THREE.Color(destinationColor);
+      } else {
+        // If source is peripheral, use its color
+        nodeColor = new THREE.Color(sourceColor);
+      }
+    } else {
+      // For core lines and peripheral lines
+      nodeColor = new THREE.Color(color);
+    }
     
     // Match the node material properties exactly
     const material = new THREE.MeshBasicMaterial({
@@ -105,10 +123,10 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
     // Add to the group for proper rotation
     groupRef.current?.add(mesh);
 
-    // Keep speed logic the same
+    // Restore interconnect speed factor adjustment
     let speedFactor = 0.4 + Math.random() * 0.8;
     if (lineType === 'core') speedFactor *= 0.8 + Math.random() * 0.4;
-    // No specific factor for peripheral, uses base random speed
+    if (lineType === 'interconnect') speedFactor *= 0.7 + Math.random() * 0.6; // Restore interconnect speed factor
 
     return {
       mesh,
@@ -655,7 +673,9 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
                const particle = createDataParticle(
                  segment,
                  lineColor,
-                 'core' // Pass correct type
+                 'core', // Pass correct type
+                 CORE_CONFIG.color, // Pass core color as source
+                 CORE_CONFIG.color // Pass core color as destination
                );
                
                dataParticlesRef.current.push(particle);
@@ -683,7 +703,9 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
                const particle = createDataParticle(
                  segment,
                  lineColor,
-                 'peripheral' // Pass correct type
+                 'peripheral', // Pass correct type
+                 PERIPHERAL_CONFIG.colors[Math.floor(Math.random() * PERIPHERAL_CONFIG.colors.length)], // Pass random peripheral color as source
+                 PERIPHERAL_CONFIG.colors[Math.floor(Math.random() * PERIPHERAL_CONFIG.colors.length)] // Pass random peripheral color as destination
                );
                
                dataParticlesRef.current.push(particle);
@@ -740,7 +762,9 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
                           const particle = createDataParticle(
                               [start, end],
                               lineColor,
-                              lineType
+                              lineType,
+                              CORE_CONFIG.color, // Pass core color as source
+                              PERIPHERAL_CONFIG.colors[Math.floor(Math.random() * PERIPHERAL_CONFIG.colors.length)] // Pass random peripheral color as destination
                           );
                           
                           dataParticlesRef.current.push(particle);
