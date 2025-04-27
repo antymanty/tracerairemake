@@ -3,12 +3,12 @@
 import { motion } from 'framer-motion'
 import { Twitter, Cpu } from 'lucide-react'
 import GrainEffect from './GrainEffect'
-import ExploreModal from './ExploreModal'
 import { useState, useRef, useEffect, useMemo } from 'react'
 import * as THREE from 'three'
 import CELLS from 'vanta/dist/vanta.cells.min'
 import { GradientButton } from '@/components/ui/gradient-button'
 import Image from 'next/image'
+import Link from 'next/link'
 
 interface VantaEffect {
   destroy: () => void
@@ -16,7 +16,6 @@ interface VantaEffect {
 }
 
 export default function Hero() {
-  const [isExploreOpen, setIsExploreOpen] = useState(false)
   const [vantaEffect, setVantaEffect] = useState<VantaEffect | null>(null)
   const vantaRef = useRef<HTMLDivElement>(null)
   
@@ -70,7 +69,6 @@ export default function Hero() {
     const timer = setTimeout(initVanta, 500);
     
     return () => {
-      mountedRef = false;
       clearTimeout(timer);
       if (vantaEffect) {
         try {
@@ -79,16 +77,44 @@ export default function Hero() {
           console.error('Error destroying Vanta effect:', error);
         }
       }
+      if (mountedRef) {
+        mountedRef = false;
+      }
     };
-  }, [staticColors.color1, staticColors.color2, vantaEffect]); // Added missing dependencies
+  }, [vantaEffect, staticColors]);
+
+  // Handle mouse move for parallax effect
+  const handleMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!vantaRef.current) return;
+
+    const { clientX, clientY } = event;
+    const { offsetWidth, offsetHeight } = vantaRef.current;
+
+    const xPercent = (clientX / offsetWidth - 0.5) * 2;
+    const yPercent = (clientY / offsetHeight - 0.5) * 2;
+
+    // Apply a subtle parallax effect to the Vanta background (if controls are off)
+    // This needs careful integration with Vanta's own mouse controls if enabled
+    // For simplicity, we might disable Vanta mouse controls if applying manual parallax
+
+    // Example: Adjust content based on mouse (optional)
+    // const contentElement = document.getElementById('hero-content');
+    // if (contentElement) {
+    //   contentElement.style.transform = `translate(${xPercent * -5}px, ${yPercent * -5}px)`;
+    // }
+  };
 
   return (
-    <section className="relative min-h-screen bg-black overflow-hidden">
+    <section 
+      ref={vantaRef}
+      className="relative min-h-screen overflow-hidden bg-black"
+      onMouseMove={handleMouseMove}
+    >
       {/* Fallback background in case Vanta fails */}
       <div className="absolute inset-0 bg-gradient-to-b from-blue-900/30 to-black z-0" />
       
       {/* Vanta container */}
-      <div ref={vantaRef} className="absolute inset-0 z-[1]" />
+      <div className="absolute inset-0 z-[1]" />
       
       {/* Overlay gradient */}
       <div className="absolute inset-0 bg-gradient-to-b from-black via-black/50 to-transparent z-[2]" />
@@ -129,7 +155,7 @@ export default function Hero() {
         </a>
       </motion.div>
 
-      <div className="container mx-auto px-6 pt-32 text-center relative z-10">
+      <div id="hero-content" className="container mx-auto px-6 pt-32 text-center relative z-10">
         <motion.h1 
           className="text-8xl font-bold tracking-tight mb-6 text-white bg-clip-text text-transparent bg-gradient-to-r from-white via-white/90 to-white/80"
           initial={{ opacity: 0, y: 20 }}
@@ -151,27 +177,22 @@ export default function Hero() {
         </motion.p>
 
         <motion.div
-          className="fixed inset-0 flex items-center justify-center pointer-events-none z-10"
+          className="flex items-center justify-center mt-16 z-10"
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.8, delay: 1.1 }}
         >
-          <div className="relative pointer-events-auto">
+          <Link href="/explore" passHref legacyBehavior>
             <GradientButton 
-              onClick={() => setIsExploreOpen(true)}
               className="font-mono"
+              as="a"
             >
               <Cpu className="inline-block w-7 h-7 mr-3" />
               Explore Protocol
             </GradientButton>
-          </div>
+          </Link>
         </motion.div>
       </div>
-
-      <ExploreModal 
-        isOpen={isExploreOpen}
-        onClose={() => setIsExploreOpen(false)}
-      />
     </section>
   )
 } 
