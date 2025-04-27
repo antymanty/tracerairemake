@@ -64,58 +64,46 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
   const frameRef = useRef<number>(0)
   const groupRef = useRef<THREE.Group | null>(null)
 
-  // Memoize createDataParticle for better performance
-  const createDataParticle = useCallback((line: THREE.Line, color: string | number, scene: THREE.Scene, lineType: LineInfo['type']) => {
-    const particleSize = lineType === 'interconnect' ? 1.8 : 1.2;
-    const geometry = new THREE.SphereGeometry(particleSize, 8, 8); 
+  // MODIFIED createDataParticle: Receives start/end points directly
+  const createDataParticle = useCallback((
+    startPoint: THREE.Vector3,
+    endPoint: THREE.Vector3,
+    color: string | number,
+    scene: THREE.Scene,
+    lineType: LineInfo['type']
+  ) => {
+    // Significantly increase particle size for more glow
+    const particleSize = lineType === 'interconnect' ? 3.5 : 2.5; // Larger sizes
+    const geometry = new THREE.SphereGeometry(particleSize, 8, 8);
     const material = new THREE.MeshBasicMaterial({
       color: new THREE.Color(color),
       transparent: true,
-      opacity: 1.0, 
+      opacity: 1.0, // Keep opacity at 1 for AdditiveBlending
       blending: THREE.AdditiveBlending,
       depthWrite: false,
     });
     const mesh = new THREE.Mesh(geometry, material);
 
-    const positions = line.geometry.attributes.position.array;
-    // Determine initial direction: Start from core for interconnects? Or random?
-    // Let's make interconnects randomly start from either end.
-    let startPoint: THREE.Vector3;
-    let endPoint: THREE.Vector3;
-    let initialDirection: 1 | -1 = 1;
-    let initialProgress = 0;
-
-    if (lineType === 'interconnect' && Math.random() > 0.5) {
-        // Start from peripheral end, move towards core
-        startPoint = new THREE.Vector3(positions[3], positions[4], positions[5]);
-        endPoint = new THREE.Vector3(positions[0], positions[1], positions[2]);
-        // If we start at the 'end', progress is technically 1, moving backwards
-        // initialProgress = 1;
-        // initialDirection = -1; 
-        // --> Simpler: Just swap points and keep progress 0, direction 1
-    } else {
-        // Start from core (or first point for other types)
-        startPoint = new THREE.Vector3(positions[0], positions[1], positions[2]);
-        endPoint = new THREE.Vector3(positions[3], positions[4], positions[5]);
-    }
-
-    mesh.position.copy(startPoint);
+    // Determine initial position randomly along the path for variety
+    const initialProgress = Math.random();
+    mesh.position.lerpVectors(startPoint, endPoint, initialProgress);
     scene.add(mesh);
 
-    let speedFactor = 1.0;
-    if (lineType === 'core') speedFactor = 1.2; // Slightly slower core internal
-    if (lineType === 'interconnect') speedFactor = 2.0; // Faster interconnects
+    // Keep speed logic
+    let speedFactor = 0.8;
+    if (lineType === 'core') speedFactor = 1.0;
+    if (lineType === 'interconnect') speedFactor = 1.5;
 
     return {
       mesh,
-      startPoint,
+      startPoint, // Use provided start/end
       endPoint,
-      progress: initialProgress,
-      speed: (0.03 + Math.random() * 0.02) * speedFactor, // Adjusted base speed
-      direction: initialDirection,
-      life: 2 + Math.floor(Math.random() * 3), // Particle lasts for 2-4 full traversals (back and forth = 1 traversal)
+      progress: initialProgress, // Start at random progress
+      speed: (0.015 + Math.random() * 0.01) * speedFactor,
+      direction: (Math.random() > 0.5 ? 1 : -1) as 1 | -1, // Explicitly cast type
+      life: 2 + Math.floor(Math.random() * 3), // Life remains the same
     };
-  }, []);
+  }, []); // Dependencies removed as it no longer accesses refs directly
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -401,94 +389,138 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
       
       container.appendChild(canvas)
 
-      // Initialize data particles (fewer particles)
+      // Initialize data particles (REVISED LOGIC)
       const initDataParticles = (count: number) => {
+         if (!sceneRef.current) return;
+         const scene = sceneRef.current;
          dataParticlesRef.current.forEach(particle => scene.remove(particle.mesh));
          dataParticlesRef.current = [];
          let createdCount = 0;
-         const interconnectLines = allLinesRef.current.filter(l => l.type === 'interconnect');
-         const coreLines = allLinesRef.current.filter(l => l.type === 'core');
-         
-         while (createdCount < count && (interconnectLines.length > 0 || coreLines.length > 0)) {
-             // Prioritize interconnect lines
-             let lineInfo: LineInfo | undefined;
-             if (interconnectLines.length > 0 && Math.random() < 0.8) { // 80% chance for interconnect
-                lineInfo = interconnectLines[Math.floor(Math.random() * interconnectLines.length)];
-             } else if (coreLines.length > 0) { // 20% chance for core
-                 lineInfo = coreLines[Math.floor(Math.random() * coreLines.length)];
+
+         const coreNodes = coreNodeMeshesRef.current;
+         // Flatten peripheral nodes for easier random selection
+         const allPeripheralNodes = peripheralNodeMeshesRef.current.flat();
+
+         while (createdCount < count && coreNodes.length > 0 && allPeripheralNodes.length > 0) {
+             // 80% chance for interconnect, 20% for core (if possible)
+             const isInterconnect = Math.random() < 0.8;
+             let particle: DataParticle | null = null;
+
+             if (isInterconnect) {
+                 const coreNode = coreNodes[Math.floor(Math.random() * coreNodes.length)];
+                 const peripheralNode = allPeripheralNodes[Math.floor(Math.random() * allPeripheralNodes.length)];
+                 // Find the color of the peripheral cluster this node belongs to
+                 let peripheralColor: string | number = 0xaaaaaa; // Default interconnect color
+                 for(let i = 0; i < peripheralNodeMeshesRef.current.length; i++){
+                    if(peripheralNodeMeshesRef.current[i].includes(peripheralNode)){
+                        peripheralColor = PERIPHERAL_CONFIG.colors[i % PERIPHERAL_CONFIG.colors.length];
+                        break;
+                    }
+                 }
+
+                 particle = createDataParticle(
+                     coreNode.position,
+                     peripheralNode.position,
+                     peripheralColor, // Use cluster color
+                     scene,
+                     'interconnect'
+                 );
+             } else if (coreNodes.length >= 2) { // Need at least 2 core nodes for a core particle path
+                 const node1 = coreNodes[Math.floor(Math.random() * coreNodes.length)];
+                 let node2 = coreNodes[Math.floor(Math.random() * coreNodes.length)];
+                 // Ensure node2 is different from node1
+                 while (node2 === node1) {
+                     node2 = coreNodes[Math.floor(Math.random() * coreNodes.length)];
+                 }
+                 particle = createDataParticle(
+                     node1.position,
+                     node2.position,
+                     CORE_CONFIG.color,
+                     scene,
+                     'core'
+                 );
              }
-             if (!lineInfo) continue;
 
-             // ... (rest of segment picking logic from previous step) ...
-             const geometry = lineInfo.lineSegments.geometry;
-             const positions = geometry.attributes.position.array;
-             const numSegments = positions.length / 6;
-             if (numSegments === 0) continue;
-             const segmentIndex = Math.floor(Math.random() * numSegments);
-             const startIndex = segmentIndex * 6;
-             const segmentPoints = [
-                 new THREE.Vector3(positions[startIndex], positions[startIndex+1], positions[startIndex+2]),
-                 new THREE.Vector3(positions[startIndex+3], positions[startIndex+4], positions[startIndex+5])
-             ];
-             const segmentGeometry = new THREE.BufferGeometry().setFromPoints(segmentPoints);
-             const tempLine = new THREE.Line(segmentGeometry, new THREE.LineBasicMaterial()); 
-
-             const particle = createDataParticle(
-                 tempLine, 
-                 lineInfo.color || 0xffffff, 
-                 scene,
-                 lineInfo.type // Pass line type
-             );
-             dataParticlesRef.current.push(particle);
-             createdCount++;
-             segmentGeometry.dispose(); 
+             if (particle) {
+                dataParticlesRef.current.push(particle);
+                createdCount++;
+             } else if (!isInterconnect && coreNodes.length < 2) {
+                 // Fallback if core particle couldn't be made, force interconnect if possible
+                 if (coreNodes.length > 0 && allPeripheralNodes.length > 0) {
+                     const coreNode = coreNodes[Math.floor(Math.random() * coreNodes.length)];
+                     const peripheralNode = allPeripheralNodes[Math.floor(Math.random() * allPeripheralNodes.length)];
+                     let peripheralColor: string | number = 0xaaaaaa;
+                     for(let i = 0; i < peripheralNodeMeshesRef.current.length; i++){
+                        if(peripheralNodeMeshesRef.current[i].includes(peripheralNode)){
+                           peripheralColor = PERIPHERAL_CONFIG.colors[i % PERIPHERAL_CONFIG.colors.length];
+                           break;
+                        }
+                     }
+                     particle = createDataParticle(coreNode.position, peripheralNode.position, peripheralColor, scene, 'interconnect');
+                     if(particle) {
+                        dataParticlesRef.current.push(particle);
+                        createdCount++;
+                     }
+                 } else {
+                    break; // Cannot create any more particles
+                 }
+             } else {
+                // If interconnect failed (e.g., no nodes), break
+                 break;
+             }
          }
       };
-      initDataParticles(20); // Initial particles
+      initDataParticles(25); // Slightly more initial particles
 
-      // --- Periodically Create New Particles (Focus on Interconnect) ---
+      // --- Periodically Create New Particles (REVISED LOGIC) ---
       let particleTimeout: NodeJS.Timeout | null = null;
       const scheduleNextParticle = () => {
           if (particleTimeout) clearTimeout(particleTimeout);
           particleTimeout = setTimeout(() => {
-              if (dataParticlesRef.current.length < 30 && sceneRef.current) { // Lower max
-                 // Prioritize interconnect lines for spawning
-                 let lineInfo: LineInfo | undefined;
-                 const interconnectLines = allLinesRef.current.filter(l => l.type === 'interconnect');
-                 const coreLines = allLinesRef.current.filter(l => l.type === 'core');
+              if (dataParticlesRef.current.length < 40 && sceneRef.current) { // Increased max slightly
+                 const scene = sceneRef.current;
+                 const coreNodes = coreNodeMeshesRef.current;
+                 const allPeripheralNodes = peripheralNodeMeshesRef.current.flat();
+                 let particle: DataParticle | null = null;
 
-                 if (interconnectLines.length > 0 && Math.random() < 0.9) { // 90% chance interconnect
-                     lineInfo = interconnectLines[Math.floor(Math.random() * interconnectLines.length)];
-                 } else if (coreLines.length > 0) { // 10% chance core
-                     lineInfo = coreLines[Math.floor(Math.random() * coreLines.length)];
+                 // 90% chance interconnect, 10% core
+                 const isInterconnect = Math.random() < 0.9;
+
+                 if (isInterconnect && coreNodes.length > 0 && allPeripheralNodes.length > 0) {
+                     const coreNode = coreNodes[Math.floor(Math.random() * coreNodes.length)];
+                     const peripheralNode = allPeripheralNodes[Math.floor(Math.random() * allPeripheralNodes.length)];
+                      let peripheralColor: string | number = 0xaaaaaa;
+                     for(let i = 0; i < peripheralNodeMeshesRef.current.length; i++){
+                        if(peripheralNodeMeshesRef.current[i].includes(peripheralNode)){
+                           peripheralColor = PERIPHERAL_CONFIG.colors[i % PERIPHERAL_CONFIG.colors.length];
+                           break;
+                        }
+                     }
+                     particle = createDataParticle(coreNode.position, peripheralNode.position, peripheralColor, scene, 'interconnect');
+
+                 } else if (!isInterconnect && coreNodes.length >= 2) {
+                     const node1 = coreNodes[Math.floor(Math.random() * coreNodes.length)];
+                     let node2 = coreNodes[Math.floor(Math.random() * coreNodes.length)];
+                     while (node2 === node1) {
+                         node2 = coreNodes[Math.floor(Math.random() * coreNodes.length)];
+                     }
+                     particle = createDataParticle(node1.position, node2.position, CORE_CONFIG.color, scene, 'core');
                  }
-                 
-                 if (lineInfo) {
-                    // ... (segment picking and particle creation logic - same as init) ...
-                    const geometry = lineInfo.lineSegments.geometry;
-                    const positions = geometry.attributes.position.array;
-                    const numSegments = positions.length / 6;
-                    if (numSegments > 0) {
-                       const segmentIndex = Math.floor(Math.random() * numSegments);
-                       const startIndex = segmentIndex * 6;
-                       const segmentPoints = [ new THREE.Vector3(positions[startIndex], positions[startIndex+1], positions[startIndex+2]), new THREE.Vector3(positions[startIndex+3], positions[startIndex+4], positions[startIndex+5]) ];
-                       const segmentGeometry = new THREE.BufferGeometry().setFromPoints(segmentPoints);
-                       const tempLine = new THREE.Line(segmentGeometry, new THREE.LineBasicMaterial());
-                       const particle = createDataParticle(tempLine, lineInfo.color || 0xffffff, sceneRef.current, lineInfo.type);
-                       dataParticlesRef.current.push(particle);
-                       segmentGeometry.dispose();
-                    }
+                  // No complex fallback here, just try again next time if creation failed
+
+                 if (particle) {
+                     dataParticlesRef.current.push(particle);
                  }
               }
-              scheduleNextParticle(); 
-          }, 200 + Math.random() * 500); // Spawn rate
+              scheduleNextParticle();
+          }, 150 + Math.random() * 400); // Slightly adjusted spawn rate
       };
-      scheduleNextParticle(); 
-      
+      scheduleNextParticle();
+
       const cleanupFunc = () => {
           if (particleTimeout) clearTimeout(particleTimeout);
       };
-      return cleanupFunc; 
+      return cleanupFunc;
     }
 
     const cleanupParticles = init();
@@ -528,7 +560,7 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
         starsRef.current.rotation.x += 0.00002;
       }
       
-      // --- Update Data Particles (Bi-directional) ---
+      // --- Update Data Particles (Simplified with new structure) ---
       const particlesToRemove: number[] = [];
       dataParticlesRef.current.forEach((particle, index) => {
         // Update progress based on direction
@@ -538,11 +570,11 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
         if (particle.progress >= 1) {
           particle.progress = 1; // Clamp
           particle.direction = -1; // Reverse
-          particle.life -= 0.5; // Decrement life after reaching end
+          particle.life -= 0.5;
         } else if (particle.progress <= 0) {
           particle.progress = 0; // Clamp
           particle.direction = 1; // Reverse
-          particle.life -= 0.5; // Decrement life after reaching start
+          particle.life -= 0.5;
         }
 
         // Remove particle if life runs out
@@ -552,18 +584,18 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
           (particle.mesh.material as THREE.Material).dispose();
           particlesToRemove.push(index);
         } else {
-          // Interpolate position along the segment
+          // Interpolate position along the full path
           particle.mesh.position.lerpVectors(particle.startPoint, particle.endPoint, particle.progress);
         }
       });
       
-      // Remove particles marked for removal (iterate backwards)
+      // Remove particles marked for removal
       for (let i = particlesToRemove.length - 1; i >= 0; i--) {
           dataParticlesRef.current.splice(particlesToRemove[i], 1);
       }
       
       frameRef.current++;
-      rendererRef.current.render(scene, camera);
+      rendererRef.current.render(sceneRef.current, camera);
     }
 
     // Add Original Event Listeners 
@@ -640,7 +672,7 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
           }
       }
     }
-  }, [createDataParticle]) // createDataParticle might need update if args change
+  }, [createDataParticle]) // Dependency updated
 
   return (
     <div ref={containerRef} className="fixed inset-0 z-0" style={{ cursor: 'default' }}>
