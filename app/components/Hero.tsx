@@ -87,11 +87,12 @@ export default function Hero() {
   const handleMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
     if (!vantaRef.current) return;
 
-    const { clientX, clientY } = event;
-    const { offsetWidth, offsetHeight } = vantaRef.current;
+    // Removed unused variables causing lint errors
+    // const { clientX, clientY } = event;
+    // const { offsetWidth, offsetHeight } = vantaRef.current;
 
-    const xPercent = (clientX / offsetWidth - 0.5) * 2;
-    const yPercent = (clientY / offsetHeight - 0.5) * 2;
+    // const xPercent = (clientX / offsetWidth - 0.5) * 2;
+    // const yPercent = (clientY / offsetHeight - 0.5) * 2;
 
     // Apply a subtle parallax effect to the Vanta background (if controls are off)
     // This needs careful integration with Vanta's own mouse controls if enabled
@@ -182,10 +183,9 @@ export default function Hero() {
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.8, delay: 1.1 }}
         >
-          <Link href="/explore" passHref legacyBehavior>
+          <Link href="/explore" passHref>
             <GradientButton 
               className="font-mono"
-              as="a"
             >
               <Cpu className="inline-block w-7 h-7 mr-3" />
               Explore Protocol

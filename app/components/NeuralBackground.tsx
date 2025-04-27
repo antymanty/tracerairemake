@@ -17,11 +17,11 @@ interface DataParticle {
   line: THREE.Line
 }
 
-// Reduced clusters from 4 to 3
+// Adjusted cluster y-coordinates to be more centered vertically
 const CLUSTERS = [
-  { x: -400, y: 200, z: 100, color: '#ff4444', size: 30 },  // Reduced size from 40 to 30
-  { x: 0, y: 300, z: 100, color: '#ffdd44', size: 35 },     // Reduced size from 50 to 35
-  { x: 400, y: 200, z: 100, color: '#44ddff', size: 30 }    // Reduced size from 45 to 30
+  { x: -400, y: -50, z: 100, color: '#ff4444', size: 30 }, // Lowered Y
+  { x: 0, y: 50, z: 100, color: '#ffdd44', size: 35 },    // Lowered Y
+  { x: 400, y: -50, z: 100, color: '#44ddff', size: 30 }     // Lowered Y
 ]
 
 export default function NeuralBackground({ children }: NeuralBackgroundProps) {
@@ -32,6 +32,7 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
   const textSpritesRef = useRef<THREE.Sprite[]>([])
   const dataParticlesRef = useRef<DataParticle[]>([])
   const sceneRef = useRef<THREE.Scene | null>(null)
+  const starsRef = useRef<THREE.Points | null>(null)
   const isDraggingRef = useRef(false)
   const previousMousePositionRef = useRef({ x: 0, y: 0 })
   const rotationRef = useRef({ x: 0, y: 0 })
@@ -131,25 +132,70 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
         container.removeChild(container.firstChild)
       }
 
-      camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 4000)
+      camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 5000)
       camera.position.z = 1000
       scene = new THREE.Scene()
+      scene.fog = new THREE.FogExp2(0x000000, 0.0003)
       sceneRef.current = scene
 
-      // Create circuit board base with reduced complexity
-      const circuitGeometry = new THREE.PlaneGeometry(2000, 2000, 10, 10) // Reduced from 20x20 to 10x10
+      // Create Starfield
+      const starCount = 10000;
+      const starGeometry = new THREE.BufferGeometry();
+      const starPositions = new Float32Array(starCount * 3);
+      const starColors = new Float32Array(starCount * 3);
+      const color = new THREE.Color();
+
+      for (let i = 0; i < starCount; i++) {
+        // Distribute stars spherically
+        const radius = 1500 + Math.random() * 1000; // Adjust radius range
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos((Math.random() * 2) - 1);
+
+        const x = radius * Math.sin(phi) * Math.cos(theta);
+        const y = radius * Math.sin(phi) * Math.sin(theta);
+        const z = radius * Math.cos(phi);
+
+        starPositions[i * 3] = x;
+        starPositions[i * 3 + 1] = y;
+        starPositions[i * 3 + 2] = z;
+
+        // Vary star colors slightly (blues/whites)
+        color.setHSL(0.5 + Math.random() * 0.2, 0.8, 0.7 + Math.random() * 0.2);
+        starColors[i * 3] = color.r;
+        starColors[i * 3 + 1] = color.g;
+        starColors[i * 3 + 2] = color.b;
+      }
+
+      starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+      starGeometry.setAttribute('color', new THREE.BufferAttribute(starColors, 3));
+
+      const starMaterial = new THREE.PointsMaterial({
+        size: 1.5, // Adjust star size
+        vertexColors: true,
+        blending: THREE.AdditiveBlending,
+        transparent: true,
+        opacity: 0.8,
+        sizeAttenuation: true, // Stars shrink with distance
+        depthWrite: false, // Prevent stars rendering issues with transparency
+      });
+
+      starsRef.current = new THREE.Points(starGeometry, starMaterial);
+      scene.add(starsRef.current);
+
+      // Create circuit board base (Adjusted Y position)
+      const circuitGeometry = new THREE.PlaneGeometry(2000, 2000, 10, 10)
       const circuitMaterial = new THREE.MeshBasicMaterial({
         color: 0x0a2a3f,
         wireframe: true,
         transparent: true,
-        opacity: 0.2 // Reduced from 0.3
+        opacity: 0.2 
       })
       const circuit = new THREE.Mesh(circuitGeometry, circuitMaterial)
       circuit.rotation.x = -Math.PI / 2
-      circuit.position.y = -300
+      circuit.position.y = -200 // Raised the circuit board position
       scene.add(circuit)
 
-      // Create nodes for each cluster with reduced complexity
+      // Create nodes for each cluster (using updated CLUSTERS y-coords)
       CLUSTERS.forEach((cluster) => {
         const nodeGeometry = new THREE.BufferGeometry()
         const nodePositions = []
@@ -219,8 +265,9 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
           }
         }
 
-        // Create coordinate labels (simplify or skip for better performance)
-        if (cluster.size > 30) { // Only add labels to larger clusters
+        // Create coordinate labels (Adjusted Y positioning might be needed indirectly via cluster.y)
+        // The existing cluster.y + 100 offset should still place labels above clusters
+        if (cluster.size > 30) { 
           const canvas = document.createElement('canvas')
           const ctx = canvas.getContext('2d')
           canvas.width = 128
@@ -244,10 +291,11 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
             const spriteMaterial = new THREE.SpriteMaterial({
               map: texture,
               transparent: true,
-              opacity: 0.7 // Reduced from 0.8
+              opacity: 0.7
             })
 
             const sprite = new THREE.Sprite(spriteMaterial)
+            // Label position uses the updated cluster.y, potentially shifting it automatically
             sprite.position.set(cluster.x, cluster.y + 100, cluster.z)
             sprite.scale.set(100, 50, 1)
             scene.add(sprite)
@@ -375,6 +423,12 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
         sceneRef.current.rotation.y = rotationRef.current.y
       }
 
+      // Subtle rotation for the starfield
+      if (starsRef.current) {
+        starsRef.current.rotation.y += 0.00005; 
+        starsRef.current.rotation.x += 0.00002;
+      }
+
       // Update data particles (throttled)
       dataParticlesRef.current.forEach((particle, index) => {
         particle.progress += particle.speed
@@ -438,6 +492,14 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
       }
       
       clearInterval(particleInterval)
+
+      // Cleanup stars
+      if (starsRef.current) {
+        currentScene?.remove(starsRef.current);
+        starsRef.current.geometry.dispose();
+        (starsRef.current.material as THREE.Material).dispose(); // Type assertion for dispose
+        starsRef.current = null;
+      }
     }
   }, [createDataParticle])
 
