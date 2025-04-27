@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useCallback } from 'react'
+import React, { useEffect, useRef, useCallback } from 'react'
 import * as THREE from 'three'
 import gsap from 'gsap'
 
@@ -17,19 +17,36 @@ interface DataParticle {
   line: THREE.Line
 }
 
-// Adjusted cluster y-coordinates to be more centered vertically
-const CLUSTERS = [
-  { x: -400, y: -50, z: 100, color: '#ff4444', size: 30 }, // Lowered Y
-  { x: 0, y: 50, z: 100, color: '#ffdd44', size: 35 },    // Lowered Y
-  { x: 400, y: -50, z: 100, color: '#44ddff', size: 30 }     // Lowered Y
-]
+// --- NEW STRUCTURE CONFIGURATION ---
+const CORE_CONFIG = {
+  position: { x: 0, y: 0, z: 0 },
+  color: '#00ffff', // Bright Cyan
+  nodeCount: 100, // Denser core
+  radius: 100,     // Smaller radius for density
+  connectionDistance: 120, // Connect nodes closer together
+  connectionProbability: 0.4, // Higher connection chance
+};
+
+const NUM_PERIPHERALS = 6;
+const PERIPHERAL_CONFIG = {
+  distanceFromCore: 400,
+  nodeCount: 25, // Sparser
+  radius: 80,     // Smaller clusters
+  colors: ['#FF66FF', '#FF9933', '#66FF66', '#FFFF66', '#66B2FF', '#FF6666'], // Magenta, Orange, Green, Yellow, Light Blue, Red
+  connectionDistance: 100,
+  connectionProbability: 0.2,
+  coreConnectionProbability: 0.05, // Chance to connect peripheral node to a core node
+};
+// --- END NEW STRUCTURE CONFIGURATION ---
 
 export default function NeuralBackground({ children }: NeuralBackgroundProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null)
-  const nodesRef = useRef<THREE.Points[]>([])
-  const linesRef = useRef<THREE.Line[]>([])
-  const textSpritesRef = useRef<THREE.Sprite[]>([])
+  const coreNodesRef = useRef<THREE.Points | null>(null); // Ref for core nodes
+  const peripheralNodesRefs = useRef<THREE.Points[]>([]); // Array for peripheral nodes
+  const coreLinesRef = useRef<THREE.LineSegments | null>(null); // Ref for core lines
+  const peripheralLinesRefs = useRef<THREE.LineSegments[]>([]); // Array for peripheral lines
+  const corePeripheralLinesRef = useRef<THREE.LineSegments | null>(null); // Ref for core-peripheral lines
   const dataParticlesRef = useRef<DataParticle[]>([])
   const sceneRef = useRef<THREE.Scene | null>(null)
   const starsRef = useRef<THREE.Points | null>(null)
@@ -37,6 +54,7 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
   const previousMousePositionRef = useRef({ x: 0, y: 0 })
   const rotationRef = useRef({ x: 0, y: 0 })
   const frameRef = useRef<number>(0)
+  const groupRef = useRef<THREE.Group | null>(null); // Group to hold network elements for easier rotation
 
   // Memoize createDataParticle for better performance
   const createDataParticle = useCallback((line: THREE.Line, color: string, isInterCluster: boolean = false, scene: THREE.Scene) => {
@@ -138,6 +156,9 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
       scene.fog = new THREE.FogExp2(0x000000, 0.0003)
       sceneRef.current = scene
 
+      groupRef.current = new THREE.Group(); // Create the group
+      scene.add(groupRef.current);
+
       // Create Starfield
       const starCount = 10000;
       const starGeometry = new THREE.BufferGeometry();
@@ -183,126 +204,172 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
       scene.add(starsRef.current);
 
       // Create circuit board base (Adjusted Y position)
-      const circuitGeometry = new THREE.PlaneGeometry(2000, 2000, 10, 10)
+      const circuitGeometry = new THREE.PlaneGeometry(2500, 2500, 15, 15) // Slightly larger, more segments
       const circuitMaterial = new THREE.MeshBasicMaterial({
-        color: 0x0a2a3f,
+        color: 0x051520, // Darker blue-grey
         wireframe: true,
         transparent: true,
-        opacity: 0.2 
+        opacity: 0.1 // More transparent
       })
       const circuit = new THREE.Mesh(circuitGeometry, circuitMaterial)
       circuit.rotation.x = -Math.PI / 2
-      circuit.position.y = -200 // Raised the circuit board position
-      scene.add(circuit)
+      circuit.position.y = -300 // Position it further down
+      groupRef.current?.add(circuit) // Add to group
 
-      // Create nodes for each cluster (using updated CLUSTERS y-coords)
-      CLUSTERS.forEach((cluster) => {
-        const nodeGeometry = new THREE.BufferGeometry()
-        const nodePositions = []
-        const nodeColors = []
-        const clusterColor = new THREE.Color(cluster.color)
+      // --- Generate Nodes Function ---
+      const generateNodes = (count: number, center: THREE.Vector3, radius: number, colorVal: string | number): [Float32Array, Float32Array] => {
+        const positions = new Float32Array(count * 3);
+        const colors = new Float32Array(count * 3);
+        const color = new THREE.Color(colorVal);
 
-        // Create nodes in a cluster pattern with fewer nodes
-        for (let i = 0; i < cluster.size; i++) {
-          // Use gaussian distribution for more natural clustering
-          const radius = Math.random() * 150
-          const theta = Math.random() * Math.PI * 2
-          const phi = Math.random() * Math.PI * 2
+        for (let i = 0; i < count; i++) {
+          // Spherical distribution within the radius
+          const r = radius * Math.cbrt(Math.random()); // Cube root for uniform volume distribution
+          const theta = Math.random() * Math.PI * 2;
+          const phi = Math.acos((Math.random() * 2) - 1);
 
-          const x = cluster.x + radius * Math.sin(theta) * Math.cos(phi)
-          const y = cluster.y + radius * Math.sin(theta) * Math.sin(phi)
-          const z = cluster.z + radius * Math.cos(theta)
+          const x = center.x + r * Math.sin(phi) * Math.cos(theta);
+          const y = center.y + r * Math.sin(phi) * Math.sin(theta);
+          const z = center.z + r * Math.cos(phi);
 
-          nodePositions.push(x, y, z)
-          nodeColors.push(clusterColor.r, clusterColor.g, clusterColor.b)
+          positions[i * 3] = x;
+          positions[i * 3 + 1] = y;
+          positions[i * 3 + 2] = z;
+
+          // Add slight color variation
+          const hsl = { h: 0, s: 0, l: 0 };
+          color.getHSL(hsl);
+          color.setHSL(hsl.h, hsl.s, hsl.l * (0.8 + Math.random() * 0.4));
+
+          colors[i * 3] = color.r;
+          colors[i * 3 + 1] = color.g;
+          colors[i * 3 + 2] = color.b;
         }
+        return [positions, colors];
+      };
 
-        nodeGeometry.setAttribute('position', new THREE.Float32BufferAttribute(nodePositions, 3))
-        nodeGeometry.setAttribute('color', new THREE.Float32BufferAttribute(nodeColors, 3))
+      // --- Generate Lines Function ---
+      const generateLines = (positions: Float32Array, maxDistance: number, probability: number): Float32Array => {
+          const lines: number[] = [];
+          const numPoints = positions.length / 3;
+          for (let i = 0; i < numPoints; i++) {
+            for (let j = i + 1; j < numPoints; j++) {
+                 if (Math.random() > probability) continue; // Skip based on probability
 
-        const nodeMaterial = new THREE.PointsMaterial({
-          size: 3, // Reduced from 4
-          vertexColors: true,
-          transparent: true,
-          opacity: 0.7, // Reduced from 0.8
-          blending: THREE.AdditiveBlending
-        })
+                const dx = positions[i * 3] - positions[j * 3];
+                const dy = positions[i * 3 + 1] - positions[j * 3 + 1];
+                const dz = positions[i * 3 + 2] - positions[j * 3 + 2];
+                const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
 
-        const nodes = new THREE.Points(nodeGeometry, nodeMaterial)
-        scene.add(nodes)
-        nodesRef.current.push(nodes)
-
-        // Create connections within cluster with fewer connections
-        const positions = nodeGeometry.attributes.position.array
-        for (let i = 0; i < positions.length; i += 3) {
-          for (let j = i + 3; j < positions.length; j += 3) {
-            const distance = Math.sqrt(
-              Math.pow(positions[i] - positions[j], 2) +
-              Math.pow(positions[i + 1] - positions[j + 1], 2) +
-              Math.pow(positions[i + 2] - positions[j + 2], 2)
-            )
-
-            // Reduced connection probability for better performance
-            if (distance < 150 && Math.random() > 0.7) { // Changed from 200 and 0.5
-              const lineGeometry = new THREE.BufferGeometry()
-              const linePositions = [
-                positions[i], positions[i + 1], positions[i + 2],
-                positions[j], positions[j + 1], positions[j + 2]
-              ]
-              lineGeometry.setAttribute('position', new THREE.Float32BufferAttribute(linePositions, 3))
-
-              const lineMaterial = new THREE.LineBasicMaterial({
-                color: cluster.color,
-                transparent: true,
-                opacity: 0.1,  // Reduced from 0.15
-                blending: THREE.AdditiveBlending
-              })
-
-              const line = new THREE.Line(lineGeometry, lineMaterial)
-              scene.add(line)
-              linesRef.current.push(line)
+                if (distance < maxDistance) {
+                    lines.push(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]);
+                    lines.push(positions[j * 3], positions[j * 3 + 1], positions[j * 3 + 2]);
+                }
             }
           }
-        }
+          return new Float32Array(lines);
+      };
+      
+      // --- Create Core Nodes ---
+      const coreCenter = new THREE.Vector3(CORE_CONFIG.position.x, CORE_CONFIG.position.y, CORE_CONFIG.position.z);
+      const [coreNodePositions, coreNodeColors] = generateNodes(CORE_CONFIG.nodeCount, coreCenter, CORE_CONFIG.radius, CORE_CONFIG.color);
+      const coreGeometry = new THREE.BufferGeometry();
+      coreGeometry.setAttribute('position', new THREE.BufferAttribute(coreNodePositions, 3));
+      coreGeometry.setAttribute('color', new THREE.BufferAttribute(coreNodeColors, 3));
+      const coreMaterial = new THREE.PointsMaterial({
+        size: 3.5, // Slightly larger core nodes
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.9,
+        blending: THREE.AdditiveBlending,
+        sizeAttenuation: true,
+        depthWrite: false,
+      });
+      coreNodesRef.current = new THREE.Points(coreGeometry, coreMaterial);
+      groupRef.current?.add(coreNodesRef.current);
 
-        // Create coordinate labels (Adjusted Y positioning might be needed indirectly via cluster.y)
-        // The existing cluster.y + 100 offset should still place labels above clusters
-        if (cluster.size > 30) { 
-          const canvas = document.createElement('canvas')
-          const ctx = canvas.getContext('2d')
-          canvas.width = 128
-          canvas.height = 64
+      // --- Create Core Lines ---
+      const coreLinePositions = generateLines(coreNodePositions, CORE_CONFIG.connectionDistance, CORE_CONFIG.connectionProbability);
+      const coreLineGeometry = new THREE.BufferGeometry();
+      coreLineGeometry.setAttribute('position', new THREE.BufferAttribute(coreLinePositions, 3));
+      const coreLineMaterial = new THREE.LineBasicMaterial({ 
+          color: CORE_CONFIG.color, 
+          transparent: true, 
+          opacity: 0.15, // Slightly more visible core lines
+          blending: THREE.AdditiveBlending 
+      });
+      // Use LineSegments for performance with many lines
+      coreLinesRef.current = new THREE.LineSegments(coreLineGeometry, coreLineMaterial);
+      groupRef.current?.add(coreLinesRef.current);
+      
+      // --- Create Peripheral Nodes & Lines ---
+      const allPeripheralPositions: number[] = []; // Store all for core connections
+      peripheralNodesRefs.current = [];
+      peripheralLinesRefs.current = [];
 
-          if (ctx) {
-            ctx.fillStyle = 'rgba(0, 0, 0, 0)'
-            ctx.fillRect(0, 0, canvas.width, canvas.height)
-            
-            ctx.font = '16px monospace'
-            ctx.fillStyle = cluster.color
-            ctx.textAlign = 'center'
-            ctx.textBaseline = 'middle'
-            
-            const coords = `[${Math.round(cluster.x)}, ${Math.round(cluster.y)}]`
-            ctx.fillText(coords, canvas.width / 2, canvas.height / 2)
+      for (let i = 0; i < NUM_PERIPHERALS; i++) {
+        // Calculate peripheral position spherically around core
+        const angleTheta = (i / NUM_PERIPHERALS) * Math.PI * 2;
+        const anglePhi = Math.PI / 3 + (Math.random() - 0.5) * (Math.PI / 4); // Angle from Y-axis with some randomness
+        const periCenter = new THREE.Vector3(
+          coreCenter.x + PERIPHERAL_CONFIG.distanceFromCore * Math.sin(anglePhi) * Math.cos(angleTheta),
+          coreCenter.y + PERIPHERAL_CONFIG.distanceFromCore * Math.cos(anglePhi),
+          coreCenter.z + PERIPHERAL_CONFIG.distanceFromCore * Math.sin(anglePhi) * Math.sin(angleTheta)
+        );
+        const periColor = PERIPHERAL_CONFIG.colors[i % PERIPHERAL_CONFIG.colors.length];
 
-            const texture = new THREE.Texture(canvas)
-            texture.needsUpdate = true
+        // Generate Peripheral Nodes
+        const [periNodePositions, periNodeColors] = generateNodes(PERIPHERAL_CONFIG.nodeCount, periCenter, PERIPHERAL_CONFIG.radius, periColor);
+        allPeripheralPositions.push(...Array.from(periNodePositions));
+        const periGeometry = new THREE.BufferGeometry();
+        periGeometry.setAttribute('position', new THREE.BufferAttribute(periNodePositions, 3));
+        periGeometry.setAttribute('color', new THREE.BufferAttribute(periNodeColors, 3));
+        const periMaterial = new THREE.PointsMaterial({ 
+            size: 2.5, // Smaller peripheral nodes
+            vertexColors: true, 
+            transparent: true, 
+            opacity: 0.8, 
+            blending: THREE.AdditiveBlending, 
+            sizeAttenuation: true,
+            depthWrite: false,
+        });
+        const peripheralNodes = new THREE.Points(periGeometry, periMaterial);
+        groupRef.current?.add(peripheralNodes);
+        peripheralNodesRefs.current.push(peripheralNodes);
 
-            const spriteMaterial = new THREE.SpriteMaterial({
-              map: texture,
-              transparent: true,
-              opacity: 0.7
-            })
+        // Generate Peripheral Lines (within the cluster)
+        const periLinePositions = generateLines(periNodePositions, PERIPHERAL_CONFIG.connectionDistance, PERIPHERAL_CONFIG.connectionProbability);
+        const periLineGeometry = new THREE.BufferGeometry();
+        periLineGeometry.setAttribute('position', new THREE.BufferAttribute(periLinePositions, 3));
+        const periLineMaterial = new THREE.LineBasicMaterial({ color: periColor, transparent: true, opacity: 0.1, blending: THREE.AdditiveBlending });
+        const peripheralLines = new THREE.LineSegments(periLineGeometry, periLineMaterial);
+        groupRef.current?.add(peripheralLines);
+        peripheralLinesRefs.current.push(peripheralLines);
+      }
 
-            const sprite = new THREE.Sprite(spriteMaterial)
-            // Label position uses the updated cluster.y, potentially shifting it automatically
-            sprite.position.set(cluster.x, cluster.y + 100, cluster.z)
-            sprite.scale.set(100, 50, 1)
-            scene.add(sprite)
-            textSpritesRef.current.push(sprite)
+      // --- Create Core-Peripheral Lines ---
+      const corePeripheralLinePoints: number[] = [];
+      const numCoreNodes = coreNodePositions.length / 3;
+      const numPeriNodes = allPeripheralPositions.length / 3;
+      for(let i = 0; i < numCoreNodes; i++) {
+          for(let j = 0; j < numPeriNodes; j++) {
+              if (Math.random() < PERIPHERAL_CONFIG.coreConnectionProbability) {
+                  // Add line segment
+                  corePeripheralLinePoints.push(coreNodePositions[i * 3], coreNodePositions[i * 3 + 1], coreNodePositions[i * 3 + 2]);
+                  corePeripheralLinePoints.push(allPeripheralPositions[j * 3], allPeripheralPositions[j * 3 + 1], allPeripheralPositions[j * 3 + 2]);
+              }
           }
-        }
-      })
+      }
+       const cpLineGeometry = new THREE.BufferGeometry();
+       cpLineGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(corePeripheralLinePoints), 3));
+       const cpLineMaterial = new THREE.LineBasicMaterial({ 
+           color: 0xaaaaaa, // Neutral color for these connections
+           transparent: true, 
+           opacity: 0.05, // Very faint
+           blending: THREE.AdditiveBlending 
+       });
+       corePeripheralLinesRef.current = new THREE.LineSegments(cpLineGeometry, cpLineMaterial);
+       groupRef.current?.add(corePeripheralLinesRef.current);
 
       rendererRef.current = new THREE.WebGLRenderer({ 
         alpha: true,
@@ -355,153 +422,104 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
 
       // Initialize data particles (fewer particles)
       const initDataParticles = () => {
-        // Clear existing particles
-        dataParticlesRef.current.forEach(particle => {
-          scene.remove(particle.mesh)
-        })
-        dataParticlesRef.current = []
-
-        // Create new particles on random lines (fewer particles)
-        const maxParticles = 20 // Limit total particles
-        let particleCount = 0
-        
-        for (let i = 0; i < linesRef.current.length && particleCount < maxParticles; i++) {
-          const line = linesRef.current[i]
-          if (!line || !line.material) continue
-          
-          const material = line.material as THREE.LineBasicMaterial
-          const isInterCluster = material.color.getHex() === 0xffffff
-          
-          if (Math.random() > (isInterCluster ? 0.9 : 0.8)) {
-            const particle = createDataParticle(
-              line,
-              material.color.getStyle(),
-              isInterCluster,
-              scene
-            )
-            dataParticlesRef.current.push(particle)
-            particleCount++
-          }
-        }
+        // TODO: Revise this logic. Need to select lines from core, peripheral, and core-peripheral groups.
+        // For now, disable particle generation until revised.
+        dataParticlesRef.current.forEach(particle => scene.remove(particle.mesh))
+        dataParticlesRef.current = [];
       }
+      initDataParticles();
 
-      initDataParticles()
-
-      // Periodically create new particles (less frequently)
-      const particleInterval = setInterval(() => {
-        // Limit number of active particles
-        if (dataParticlesRef.current.length >= 25) return
-        
-        if (Math.random() > 0.8 && linesRef.current.length > 0 && sceneRef.current) {
-          const randomLine = linesRef.current[Math.floor(Math.random() * linesRef.current.length)]
-          if (!randomLine || !randomLine.material) return
-          
-          const material = randomLine.material as THREE.LineBasicMaterial
-          const isInterCluster = material.color.getHex() === 0xffffff
-          
-          const particle = createDataParticle(
-            randomLine,
-            material.color.getStyle(),
-            isInterCluster,
-            sceneRef.current
-          )
-          dataParticlesRef.current.push(particle)
-        }
-      }, 400) // Reduced frequency (from 200ms to 400ms)
-      
-      return particleInterval
+      return null; // Return null as interval is disabled for now
     }
 
-    const particleInterval = init()
+    init(); // Run init but don't capture interval yet
 
     const animate = () => {
-      if (!rendererRef.current || !sceneRef.current) return
+      if (!rendererRef.current || !sceneRef.current) return;
 
-      // Apply rotation from dragging
-      if (sceneRef.current) {
-        sceneRef.current.rotation.x = rotationRef.current.x
-        sceneRef.current.rotation.y = rotationRef.current.y
+      // Apply rotation from dragging TO THE GROUP
+      if (groupRef.current) {
+          // Apply smooth rotation damping
+          const targetRotationX = rotationRef.current.x;
+          const targetRotationY = rotationRef.current.y;
+          groupRef.current.rotation.x += (targetRotationX - groupRef.current.rotation.x) * 0.1;
+          groupRef.current.rotation.y += (targetRotationY - groupRef.current.rotation.y) * 0.1;
       }
-
-      // Subtle rotation for the starfield
+      
+      // Subtle rotation for the starfield (separate from group)
       if (starsRef.current) {
         starsRef.current.rotation.y += 0.00005; 
         starsRef.current.rotation.x += 0.00002;
       }
-
-      // Update data particles (throttled)
-      dataParticlesRef.current.forEach((particle, index) => {
-        particle.progress += particle.speed
-        
-        if (particle.progress >= 1) {
-          sceneRef.current?.remove(particle.mesh)
-          dataParticlesRef.current.splice(index, 1)
-        } else {
-          const newX = particle.startPoint.x + (particle.endPoint.x - particle.startPoint.x) * particle.progress
-          const newY = particle.startPoint.y + (particle.endPoint.y - particle.startPoint.y) * particle.progress
-          const newZ = particle.startPoint.z + (particle.endPoint.z - particle.startPoint.z) * particle.progress
-          particle.mesh.position.set(newX, newY, newZ)
-
-          // Less frequent pulse update (only every 4th frame)
-          if (frameRef.current % 4 === 0) {
-            const pulse = Math.sin(Date.now() * 0.005) * 0.2 + 0.8 // Reduced intensity
-            if (particle.mesh.children[0]) {
-              particle.mesh.children[0].scale.set(pulse, pulse, pulse)
-            }
-          }
-        }
-      })
       
-      frameRef.current++
-
-      camera.position.z += (targetZ - camera.position.z) * 0.05
-      rendererRef.current.render(scene, camera)
+      frameRef.current++;
+      camera.position.z += (targetZ - camera.position.z) * 0.05;
+      rendererRef.current.render(scene, camera);
     }
 
-    gsap.ticker.add(animate)
+    gsap.ticker.add(animate);
 
     return () => {
-      gsap.ticker.remove(animate)
+      gsap.ticker.remove(animate);
       window.removeEventListener('mousedown', onMouseDown)
       window.removeEventListener('mousemove', onMouseMove)
       window.removeEventListener('mouseup', onMouseUp)
       
-      // Store ref values before cleanup
-      const currentRenderer = rendererRef.current
-      const currentScene = sceneRef.current
+      const currentRenderer = rendererRef.current;
+      const currentScene = sceneRef.current;
+      const currentGroup = groupRef.current;
+      
+      // Cleanup THREE.js objects
+      const disposeMaterial = (material: THREE.Material | THREE.Material[]) => {
+          if (Array.isArray(material)) {
+              material.forEach(m => m.dispose());
+          } else {
+              material.dispose();
+          }
+      };
+      const disposeObject = (obj: THREE.Object3D | null) => {
+          if (!obj) return;
+          if (obj instanceof THREE.Mesh || obj instanceof THREE.Points || obj instanceof THREE.LineSegments) {
+              if (obj.geometry) obj.geometry.dispose();
+              if (obj.material) disposeMaterial(obj.material);
+          }
+          while(obj.children.length > 0){
+              disposeObject(obj.children[0]);
+              obj.remove(obj.children[0]);
+          }
+      };
+
+      disposeObject(currentGroup);
+      currentScene?.remove(currentGroup as THREE.Group);
+      groupRef.current = null;
+
+      disposeObject(starsRef.current); // Dispose stars separately
+      currentScene?.remove(starsRef.current as THREE.Points);
+      starsRef.current = null;
+
+      // Clear remaining refs
+      coreNodesRef.current = null;
+      peripheralNodesRefs.current = [];
+      coreLinesRef.current = null;
+      peripheralLinesRefs.current = [];
+      corePeripheralLinesRef.current = null;
+      dataParticlesRef.current = [];
       
       if (currentRenderer) {
-        currentRenderer.dispose()
-        currentRenderer.domElement.remove()
-        rendererRef.current = null
+        currentRenderer.dispose();
+        if (currentRenderer.domElement.parentNode) {
+            currentRenderer.domElement.parentNode.removeChild(currentRenderer.domElement);
+        }
+        rendererRef.current = null;
       }
-      
-      dataParticlesRef.current.forEach(particle => {
-        currentScene?.remove(particle.mesh)
-      })
-      
-      dataParticlesRef.current = []
-      nodesRef.current = []
-      linesRef.current = []
-      textSpritesRef.current = []
       
       if (container) {
-        while (container.firstChild) {
-          container.removeChild(container.firstChild)
-        }
-      }
-      
-      clearInterval(particleInterval)
-
-      // Cleanup stars
-      if (starsRef.current) {
-        currentScene?.remove(starsRef.current);
-        starsRef.current.geometry.dispose();
-        (starsRef.current.material as THREE.Material).dispose(); // Type assertion for dispose
-        starsRef.current = null;
+          while (container.firstChild) {
+              container.removeChild(container.firstChild);
+          }
       }
     }
-  }, [createDataParticle])
+  }, [createDataParticle]) // createDataParticle might need update if args change
 
   return (
     <div ref={containerRef} className="fixed inset-0 z-0">

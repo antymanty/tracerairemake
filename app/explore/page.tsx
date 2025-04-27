@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Info, ArrowLeft, Zap, BrainCircuit, ShieldCheck, Atom, Activity, Database, Network, Cpu,
-  PauseCircle, PlayCircle, Thermometer, Target, AlertTriangle, ListChecks,
+  ListChecks
 } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
@@ -107,6 +107,8 @@ export default function ExplorePage() {
   // State for dynamic protocol data
   const [dynamicProtocolData, setDynamicProtocolData] = useState<typeof protocolData>([...protocolData]);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null); // Ref for log timeout
+  const [isControlCoolingDown, setIsControlCoolingDown] = useState(false); // State for button cooldown
+  const controlCooldownTimer = useRef<NodeJS.Timeout | null>(null);
 
   // --- Simulate Dynamic Data Updates (Randomized Item Updates) --- 
   useEffect(() => {
@@ -199,45 +201,79 @@ export default function ExplorePage() {
     }
   }, [logEntries]);
 
-  // Mock Control Actions
-  const handlePauseToggle = useCallback(() => {
-     const newState = !isPaused;
-     setIsPaused(newState);
-     // Log only when state actually changes
-     setLogEntries(prev => [
-       `${new Date().toLocaleTimeString()} - [SYSTEM] Simulation ${newState ? 'Paused' : 'Resumed'}.`, 
-       ...prev.slice(0, 99)
-      ]);
-  }, [isPaused]);
+  // --- Control Action Log Messages ---
+  const pauseMessages = [
+    "[CMD] Simulation pause requested.",
+    "[SYS] Halting temporal progression.",
+    "[CMD] Entering stasis mode.",
+  ];
+  const resumeMessages = [
+    "[CMD] Simulation resume requested.",
+    "[SYS] Reactivating core processes.",
+    "[CMD] Exiting stasis mode.",
+  ];
+  const injectMessages = [
+    "[CMD] Injecting synthetic dataset: alpha_7.",
+    "[SYS] Integrating external data stream.",
+    "[CMD] Beginning test data injection protocol.",
+  ];
+  const recalibrateMessages = [
+    "[CMD] Initiating Quantum Core recalibration sequence.",
+    "[SYS] Aligning qubit entanglement matrix.",
+    "[CMD] Beginning core recalibration cycle.",
+  ];
+  const cooldownMessages = [
+      "[WARN] Control interface cooldown active. Please wait.",
+      "[SYS] Command buffer saturated. Standby required.",
+      "[WARN] Rate limit exceeded. Command rejected."
+  ];
 
-  const handleInjectData = useCallback(() => {
-     setLogEntries(prev => [`${new Date().toLocaleTimeString()} - [SYSTEM] Injecting synthetic test dataset...`, ...prev.slice(0, 99)]);
-    // Simulate a temporary spike in loss
-    setCurrentLoss(prev => Math.min(0.5, prev + 0.1 + Math.random() * 0.1));
-  }, []);
+  // --- Event Handlers with Cooldown & Dynamic Logs ---
+  const startCooldown = () => {
+      setIsControlCoolingDown(true);
+      // Clear previous timer if it exists
+      if (controlCooldownTimer.current) {
+          clearTimeout(controlCooldownTimer.current);
+      }
+      controlCooldownTimer.current = setTimeout(() => {
+          setIsControlCoolingDown(false);
+          controlCooldownTimer.current = null;
+      }, 3000); // 3 second cooldown
+  };
 
-  const handleRecalibrate = useCallback(() => {
-     setLogEntries(prev => [`${new Date().toLocaleTimeString()} - [SYSTEM] Initiating Quantum Core recalibration...`, ...prev.slice(0, 99)]);
-  }, []);
-
-  // Handler for Status Item Click
+  // --- handleStatusItemClick adjusted to use cooldown ---
   const handleStatusItemClick = useCallback((item: typeof protocolData[0]) => {
-    if (!isPaused) { // Check current state before setting
-       setIsPaused(true); // Directly set to true
-       setLogEntries(prev => [
-         `${new Date().toLocaleTimeString()} - [SYSTEM] Simulation Paused for Inspection.`, 
-         ...prev.slice(0, 99)
-       ]);
+    if (isControlCoolingDown) {
+        const msg = cooldownMessages[Math.floor(Math.random() * cooldownMessages.length)];
+        setLogEntries(prev => [`${new Date().toLocaleTimeString()} - ${msg}`, ...prev.slice(0, 99)]);
+        return;
     }
-    // Log inspection regardless of previous pause state
+    if (!isPaused) { 
+        setIsPaused(true); 
+        const pauseMsg = pauseMessages[Math.floor(Math.random() * pauseMessages.length)];
+        setLogEntries(prev => [
+          `${new Date().toLocaleTimeString()} - ${pauseMsg} (Inspect Triggered)`, 
+          ...prev.slice(0, 99)
+        ]);
+    }
     setLogEntries(prev => [
-      `${new Date().toLocaleTimeString()} - [INSPECT] Querying details for: ${item.title}... Status: ${item.status}, Value: ${item.displayValue}`, 
+      `${new Date().toLocaleTimeString()} - [INSPECT] Querying: ${item.title} | Status: ${item.status} | Val: ${item.displayValue}`, 
       ...prev.slice(0, 98)
     ]);
     if (logContainerRef.current) {
       logContainerRef.current.scrollTop = 0;
     }
-  }, [isPaused]); // Keep isPaused dependency
+    startCooldown(); // Inspection also triggers cooldown
+  }, [isPaused, isControlCoolingDown]);
+
+  // Cleanup cooldown timer on unmount
+  useEffect(() => {
+      return () => {
+          if (controlCooldownTimer.current) {
+              clearTimeout(controlCooldownTimer.current);
+          }
+      };
+  }, []);
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-black">
@@ -267,7 +303,7 @@ export default function ExplorePage() {
                 <motion.h1
                   className="text-xl md:text-2xl font-bold mb-2 bg-gradient-to-r from-emerald-300 via-cyan-300 to-blue-300 bg-clip-text text-transparent flex items-center gap-2"
                 >
-                  <Zap size={20} className="text-cyan-400" /> TraceAI Protocol Status
+                  <Zap size={20} className="text-cyan-400" /> Kodai Protocol Status
                 </motion.h1>
                 <motion.p
                   className="text-white/70 text-xs md:text-sm"
@@ -416,7 +452,7 @@ export default function ExplorePage() {
         Click & drag to rotate • Scroll to zoom
       </div>
       <div className="absolute bottom-4 right-4 text-white/40 text-xs font-mono z-10 backdrop-blur-sm bg-black/20 px-2 py-1 rounded pointer-events-none">
-        TraceAI v1.2.0-dev • Simulating...
+        Kodai v1.2.0-dev • Simulating...
       </div>
 
       {/* Custom Scrollbar CSS - No Change */}

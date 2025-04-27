@@ -84,7 +84,7 @@ export default function Hero() {
   }, [vantaEffect, staticColors]);
 
   // Handle mouse move for parallax effect
-  const handleMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
+  const handleMouseMove = () => {
     if (!vantaRef.current) return;
 
     // Removed unused variables causing lint errors
