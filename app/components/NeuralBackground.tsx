@@ -63,42 +63,27 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
   const rotationRef = useRef({ x: 0, y: 0 })
   const frameRef = useRef<number>(0)
   const groupRef = useRef<THREE.Group | null>(null)
+  const lastFlashTimeRef = useRef(0);
+  const flashCooldown = 3000; // Minimum ms between flashes
+  const flashChance = 0.005; // Chance per frame to initiate a flash
 
-  // MODIFIED createDataParticle: Makes particles match node color based on source/destination
+  // MODIFIED createDataParticle: Simplified, no interconnect color logic needed
   const createDataParticle = useCallback((
     lineSegment: [THREE.Vector3, THREE.Vector3],
     color: string | number,
-    lineType: LineInfo['type'],
-    sourceColor: string | number,
-    destinationColor: string | number
+    lineType: LineInfo['type']
+    // Removed sourceColor and destinationColor parameters
   ) => {
     // Use the same design as nodes but slightly smaller (80% of node size)
-    const nodeSize = lineType === 'interconnect' ? 
-                     PERIPHERAL_CONFIG.nodeSize * 0.8 : 
+    const nodeSize = lineType === 'peripheral' ? // Check peripheral first
+                     PERIPHERAL_CONFIG.nodeSize * 0.8 :
                      CORE_CONFIG.nodeSize * 0.8;
     
     // Create geometry the same as nodes
     const geometry = new THREE.SphereGeometry(nodeSize / 2, 8, 6);
     
-    // Determine color based on source/destination
-    let nodeColor: THREE.Color;
-    
-    if (lineType === 'interconnect') {
-      // For interconnects, use the peripheral color (non-core color)
-      const coreColorStr = new THREE.Color(CORE_CONFIG.color).getHexString();
-      const sourceColorStr = new THREE.Color(sourceColor).getHexString();
-      
-      if (sourceColorStr === coreColorStr) {
-        // If source is core, use destination color (peripheral)
-        nodeColor = new THREE.Color(destinationColor);
-      } else {
-        // If source is peripheral, use its color
-        nodeColor = new THREE.Color(sourceColor);
-      }
-    } else {
-      // For core lines and peripheral lines
-      nodeColor = new THREE.Color(color);
-    }
+    // Use the provided line color directly
+    const nodeColor = new THREE.Color(color);
     
     // Match the node material properties exactly
     const material = new THREE.MeshBasicMaterial({
@@ -123,7 +108,7 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
     // Keep speed logic the same
     let speedFactor = 0.4 + Math.random() * 0.8;
     if (lineType === 'core') speedFactor *= 0.8 + Math.random() * 0.4;
-    if (lineType === 'interconnect') speedFactor *= 0.7 + Math.random() * 0.6;
+    // No specific factor for peripheral, uses base random speed
 
     return {
       mesh,
@@ -624,15 +609,13 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
          });
          dataParticlesRef.current = [];
          
-         // Focus on interconnect and core lines
-         const interconnectLines = allLinesRef.current.filter(l => l.type === 'interconnect');
+         // Remove interconnect lines from spawning pool
          const coreLines = allLinesRef.current.filter(l => l.type === 'core');
          const peripheralLines = allLinesRef.current.filter(l => l.type === 'peripheral');
          
-         // Fill up to count, with specific distribution
-         const interconnectCount = Math.ceil(count * 0.5); // 50% of particles on interconnects
-         const coreCount = Math.ceil(count * 0.3);  // 30% on core
-         const peripheralCount = count - interconnectCount - coreCount; // Rest on peripheral
+         // Fill up to count, prioritize peripheral lines slightly
+         const peripheralCount = Math.ceil(count * 0.6); // 60% peripheral
+         const coreCount = count - peripheralCount;      // 40% core
          
          // Helper to extract line segments from LineInfo
          const extractLineSegments = (lineInfo: LineInfo): [THREE.Vector3, THREE.Vector3][] => {
@@ -653,42 +636,6 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
            return segments;
          };
          
-         // Create interconnect particles
-         if (interconnectLines.length > 0) {
-           let createdCount = 0;
-           let attempts = 0;
-           const maxAttempts = interconnectCount * 2; // Avoid infinite loop
-           
-           while (createdCount < interconnectCount && attempts < maxAttempts) {
-             attempts++;
-             
-             const lineInfo = interconnectLines[Math.floor(Math.random() * interconnectLines.length)];
-             const segments = extractLineSegments(lineInfo);
-             
-             if (segments.length > 0) {
-               const segment = segments[Math.floor(Math.random() * segments.length)];
-               
-               const corePosition = new THREE.Vector3(CORE_CONFIG.position.x, CORE_CONFIG.position.y, CORE_CONFIG.position.z);
-               const startToCore = segment[0].distanceTo(corePosition);
-               const endToCore = segment[1].distanceTo(corePosition);
-               
-               // Ensure line color is defined
-               const lineColor = lineInfo.color || 0x667788;
-               
-               const particle = createDataParticle(
-                 segment,
-                 lineColor,
-                 'interconnect',
-                 startToCore < endToCore ? CORE_CONFIG.color : lineColor,
-                 startToCore < endToCore ? lineColor : CORE_CONFIG.color
-               );
-               
-               dataParticlesRef.current.push(particle);
-               createdCount++;
-             }
-           }
-         }
-         
          // Create core particles
          if (coreLines.length > 0) {
            let createdCount = 0;
@@ -708,9 +655,7 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
                const particle = createDataParticle(
                  segment,
                  lineColor,
-                 'core',
-                 lineColor, // Source is same as line color
-                 lineColor  // Destination is same as line color
+                 'core' // Pass correct type
                );
                
                dataParticlesRef.current.push(particle);
@@ -738,9 +683,7 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
                const particle = createDataParticle(
                  segment,
                  lineColor,
-                 'peripheral',
-                 lineColor, // Source is same as line color
-                 lineColor  // Destination is same as line color
+                 'peripheral' // Pass correct type
                );
                
                dataParticlesRef.current.push(particle);
@@ -757,32 +700,25 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
           if (particleTimeout) clearTimeout(particleTimeout);
           particleTimeout = setTimeout(() => {
               if (dataParticlesRef.current.length < 40 && groupRef.current) {
-                  // Same logic as init, but add just one particle at a time
-                  const interconnectLines = allLinesRef.current.filter(l => l.type === 'interconnect');
+                  // Only spawn core or peripheral
                   const coreLines = allLinesRef.current.filter(l => l.type === 'core');
                   const peripheralLines = allLinesRef.current.filter(l => l.type === 'peripheral');
                   
-                  // 70% chance for interconnect, 20% for core, 10% for peripheral
+                  // 60% chance for peripheral, 40% for core
                   const rand = Math.random();
                   let selectedLine;
-                  let lineType: LineInfo['type'] = 'interconnect'; // Initialize with default
+                  let lineType: LineInfo['type'] = 'peripheral'; // Default to peripheral
                   
-                  if (rand < 0.7 && interconnectLines.length > 0) {
-                      selectedLine = interconnectLines[Math.floor(Math.random() * interconnectLines.length)];
-                      lineType = 'interconnect';
-                  } else if (rand < 0.9 && coreLines.length > 0) {
-                      selectedLine = coreLines[Math.floor(Math.random() * coreLines.length)];
-                      lineType = 'core';
-                  } else if (peripheralLines.length > 0) {
+                  if (rand < 0.6 && peripheralLines.length > 0) {
                       selectedLine = peripheralLines[Math.floor(Math.random() * peripheralLines.length)];
                       lineType = 'peripheral';
-                  } else if (interconnectLines.length > 0) {
-                      // Fallback if no other lines
-                      selectedLine = interconnectLines[Math.floor(Math.random() * interconnectLines.length)];
-                      lineType = 'interconnect';
                   } else if (coreLines.length > 0) {
                       selectedLine = coreLines[Math.floor(Math.random() * coreLines.length)];
                       lineType = 'core';
+                  } else if (peripheralLines.length > 0) {
+                      // Fallback if no core lines
+                      selectedLine = peripheralLines[Math.floor(Math.random() * peripheralLines.length)];
+                      lineType = 'peripheral';
                   }
                   
                   if (selectedLine) {
@@ -799,36 +735,15 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
                               positions[i+3], positions[i+4], positions[i+5]
                           );
                           
-                          // Ensure we have a valid color
                           const lineColor = selectedLine.color || 0xffffff;
                           
-                          if (lineType === 'interconnect') {
-                              // For interconnects, determine which end is core vs peripheral
-                              const corePosition = new THREE.Vector3(CORE_CONFIG.position.x, CORE_CONFIG.position.y, CORE_CONFIG.position.z);
-                              const startToCore = start.distanceTo(corePosition);
-                              const endToCore = end.distanceTo(corePosition);
-                              
-                              const particle = createDataParticle(
-                                  [start, end],
-                                  lineColor,
-                                  lineType,
-                                  startToCore < endToCore ? CORE_CONFIG.color : lineColor,
-                                  startToCore < endToCore ? lineColor : CORE_CONFIG.color
-                              );
-                              
-                              dataParticlesRef.current.push(particle);
-                          } else {
-                              // For core and peripheral lines, use the line color for both source and destination
-                              const particle = createDataParticle(
-                                  [start, end],
-                                  lineColor,
-                                  lineType,
-                                  lineColor,
-                                  lineColor
-                              );
-                              
-                              dataParticlesRef.current.push(particle);
-                          }
+                          const particle = createDataParticle(
+                              [start, end],
+                              lineColor,
+                              lineType
+                          );
+                          
+                          dataParticlesRef.current.push(particle);
                       }
                   }
               }
@@ -861,18 +776,56 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
       camera.position.z += (targetZ - camera.position.z) * 0.05; 
       // Removed panning logic and camera.lookAt
 
+      const time = Date.now();
+      const elapsed = time * 0.001;
+
       // --- Node Pulsing Animation (Subtler) ---
-      const time = Date.now() * 0.001;
       const pulseFactor = 0.1; // Reduced intensity
       const pulseSpeed = 1.2; // Slightly slower 
       coreNodeMeshesRef.current.forEach((mesh, index) => {
-          const scale = 1.0 + Math.sin(time * pulseSpeed + index * 0.5) * pulseFactor;
+          const scale = 1.0 + Math.sin(elapsed * pulseSpeed + index * 0.5) * pulseFactor;
           mesh.scale.set(scale, scale, scale);
       });
       peripheralNodeMeshesRef.current.flat().forEach((mesh, index) => { 
-          const scale = 1.0 + Math.sin(time * pulseSpeed * 0.8 + index * 0.8) * pulseFactor * 0.7;
-          mesh.scale.set(scale, scale, scale);
+          // Apply base pulsing unless currently flashing
+          if (!mesh.userData.isFlashing) {
+            const scale = 1.0 + Math.sin(elapsed * pulseSpeed * 0.8 + index * 0.8) * pulseFactor * 0.7;
+            mesh.scale.set(scale, scale, scale);
+          }
       });
+      
+      // --- NEW: Peripheral Node Flashing --- 
+      if (time - lastFlashTimeRef.current > flashCooldown && Math.random() < flashChance) {
+          const allPeripheralNodes = peripheralNodeMeshesRef.current.flat();
+          if (allPeripheralNodes.length > 0) {
+              // Select a random peripheral node to flash
+              const nodeToFlash = allPeripheralNodes[Math.floor(Math.random() * allPeripheralNodes.length)];
+              
+              // Ensure it's not already flashing
+              if (!nodeToFlash.userData.isFlashing) {
+                  nodeToFlash.userData.isFlashing = true;
+                  lastFlashTimeRef.current = time; // Reset cooldown timer
+                  
+                  const originalScale = nodeToFlash.scale.x; // Assuming uniform scale
+                  const originalOpacity = (nodeToFlash.material as THREE.MeshBasicMaterial).opacity;
+                  const flashMaterial = nodeToFlash.material as THREE.MeshBasicMaterial;
+                  
+                  // Flash animation: quickly scale up/brighten, then fade back
+                  gsap.timeline({ 
+                      onComplete: () => { 
+                          nodeToFlash.userData.isFlashing = false; 
+                          // Ensure scale/opacity are reset precisely
+                          nodeToFlash.scale.set(originalScale, originalScale, originalScale);
+                          flashMaterial.opacity = originalOpacity;
+                      }
+                  })
+                  .to(nodeToFlash.scale, { x: originalScale * 2.5, y: originalScale * 2.5, z: originalScale * 2.5, duration: 0.15, ease: "power2.out" })
+                  .to(flashMaterial, { opacity: 1.0, duration: 0.15 }, "<" ) // Brighten simultaneously
+                  .to(nodeToFlash.scale, { x: originalScale, y: originalScale, z: originalScale, duration: 0.4, ease: "power2.in" }, ">0.1") // Fade back slightly delayed
+                  .to(flashMaterial, { opacity: originalOpacity, duration: 0.4 }, "<"); // Fade opacity simultaneously
+              }
+          }
+      }
       
       // Subtle rotation for the starfield (separate from group)
       if (starsRef.current) {
