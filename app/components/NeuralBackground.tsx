@@ -155,7 +155,7 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
       previousMousePositionRef.current = { x: event.clientX, y: event.clientY };
       container.style.cursor = 'grabbing'; // Simple grab cursor
     };
-
+    
     const onMouseMove = (event: MouseEvent) => {
        if (!isDraggingRef.current) return;
        const now = Date.now();
@@ -489,7 +489,7 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
         // Create a material with vertex colors and transparency
         const material = new THREE.LineBasicMaterial({
             vertexColors: true,
-            transparent: true,
+              transparent: true,
             // Make lines less visible overall, especially core lines
             opacity: lineType === 'core' ? 0.15 : 
                      lineType === 'interconnect' ? 0.15 : 0.3, // Lower opacity for core and interconnect
@@ -709,7 +709,7 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
              if (segments.length > 0) {
                const segment = segments[Math.floor(Math.random() * segments.length)];
                const lineColor = lineInfo.color || CORE_CONFIG.color;
-               const particle = createDataParticle(
+            const particle = createDataParticle(
                  segment,
                  lineColor,
                  'core',
@@ -816,8 +816,8 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
                                   }
                                 });
                               });
-                              
-                              const particle = createDataParticle(
+          
+          const particle = createDataParticle(
                                   [start, end],
                                   lineColor,
                                   lineType,
@@ -929,7 +929,7 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
       dataParticlesRef.current.forEach((particle, index) => {
         // Update progress based on direction
         particle.progress += particle.speed * particle.direction;
-
+        
         // Check boundaries and handle reversing/life
         if (particle.progress >= 1) {
           particle.progress = 1; // Clamp
@@ -1042,9 +1042,9 @@ export default function NeuralBackground({ children }: NeuralBackgroundProps) {
       }
       
       if (container) {
-          while (container.firstChild) {
+        while (container.firstChild) {
               container.removeChild(container.firstChild);
-          }
+        }
       }
     }
   }, [createDataParticle]) // Dependency updated

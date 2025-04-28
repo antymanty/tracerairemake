@@ -127,7 +127,7 @@ export default function Hero() {
         transition={{ duration: 0.8, delay: 0.5 }}
       >
         <a 
-          href="https://x.com/" 
+          href="https://x.com/K0d_AI_"
           target="_blank" 
           rel="noopener noreferrer"
           className="text-white hover:text-white/80 transition-colors"

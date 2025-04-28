@@ -5,10 +5,11 @@ import { motion, AnimatePresence } from 'framer-motion'
 
 interface CellsLoaderProps {
   onLoadingComplete: () => void
+  onFadeComplete: () => void
 }
 
 // Memoize the component to prevent unnecessary re-renders
-export default memo(function CellsLoader({ onLoadingComplete }: CellsLoaderProps) {
+export default memo(function CellsLoader({ onLoadingComplete, onFadeComplete }: CellsLoaderProps) {
   const [progress, setProgress] = useState(0)
   const [isComplete, setIsComplete] = useState(false)
 
@@ -40,7 +41,10 @@ export default memo(function CellsLoader({ onLoadingComplete }: CellsLoaderProps
   // Use simpler animation for better performance
   return (
     <div className="bg-black">
-      <AnimatePresence mode="wait">
+      <AnimatePresence 
+        mode="wait" 
+        onExitComplete={onFadeComplete}
+      >
         {!isComplete && (
           <motion.div 
             className="fixed inset-0 z-50 bg-black"
