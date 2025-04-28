@@ -25,7 +25,7 @@ export default function Hero() {
     color2: 0x00ffff  // Fixed cyan
   }), []);
 
-  // Initialize Vanta effect with delay after component mount
+  // Initialize Vanta effect immediately after component mount
   useEffect(() => {
     let mountedRef = true;
     
@@ -60,16 +60,16 @@ export default function Hero() {
         setVantaEffect(effect);
       } catch (error) {
         console.error('Failed to initialize Vanta effect:', error);
-        // Retry after a delay
+        // Retry after a delay might still be useful for robustness
         setTimeout(initVanta, 1000);
       }
     };
 
-    // Delay initialization to ensure DOM is ready
-    const timer = setTimeout(initVanta, 500);
+    // Initialize immediately instead of delaying
+    initVanta(); 
     
     return () => {
-      clearTimeout(timer);
+      // clearTimeout(timer); // No timer to clear
       if (vantaEffect) {
         try {
           vantaEffect.destroy();
