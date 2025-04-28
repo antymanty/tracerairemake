@@ -135,7 +135,7 @@ export default function Hero() {
           <Twitter className="w-6 h-6" />
         </a>
         <a 
-          href="https://pump.fun" 
+          href="https://pump.fun/coin/5QGaQXMJ74EE4gKx7XPmwqv26zsyfKtySYK1Hnftpump"
           target="_blank" 
           rel="noopener noreferrer"
           className="relative w-6 h-6 opacity-70 hover:opacity-100 transition-opacity"
